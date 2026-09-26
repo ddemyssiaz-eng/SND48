@@ -1,6 +1,6 @@
 // ตั้งค่า URL และ Anon Key ของโปรเจกต์ Supabase
 const SUPABASE_URL = 'https://nfvxeylenkdaewzynubu.supabase.co';
-const SUPABASE_ANON_KEY = 'Sb_publishable_ENDvtMzPMGJbWD_CXgKJ_Q_j1_FhWDr';
+const SUPABASE_ANON_KEY = 'sb_publishable_ENDvtMzPMGJbWD_CXgKJ_Q_j1_FhWDr';
 
 // สร้าง Supabase Client สำหรับใช้งานผ่าน HTML / Vanilla JS
 const { createClient } = window.supabase;
