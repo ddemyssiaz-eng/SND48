@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SND48 - Code แลกรับรางวัล</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        .phone-frame { max-width: 430px; height: 880px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-pink-50 via-white to-purple-50 min-h-screen flex items-center justify-center p-0 sm:p-4">
+
+    <!-- Phone Container -->
+    <div class="phone-frame bg-gray-50 w-full h-screen sm:h-[850px] sm:rounded-[40px] flex flex-col justify-between relative overflow-hidden border border-purple-100 shadow-2xl">
+        
+        <!-- Header -->
+        <div class="bg-white px-6 py-4 flex items-center justify-between border-b border-gray-100 pt-8">
+            <div class="flex items-center space-x-3">
+                <a href="home.html" class="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-purple-50 hover:text-purple-600 transition-all">
+                    <i class="fa-solid fa-arrow-left text-xs"></i>
+                </a>
+                <h1 class="text-base font-bold text-gray-800">Redeem Code</h1>
+            </div>
+            <div id="user-balance-badge" class="text-[10px] bg-purple-100 text-purple-600 px-2.5 py-1 rounded-full font-semibold">
+                Coin: ... | Point: ...
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="flex-1 overflow-y-auto p-5 space-y-6 flex flex-col justify-center">
+            <div class="text-center space-y-2">
+                <div class="w-16 h-16 bg-purple-100 text-purple-600 rounded-3xl mx-auto flex items-center justify-center text-2xl shadow-inner">
+                    <i class="fa-solid fa-ticket"></i>
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">กรอกโค้ดแลกรางวัล</h2>
+                <p class="text-xs text-gray-400">ใส่โค้ดลับเพื่อรับ Coin หรือ Point ฟรี!</p>
+            </div>
+
+            <div class="space-y-3">
+                <div class="relative">
+                    <input type="text" id="code-input" placeholder="กรอกโค้ดที่นี่ (เช่น SND48WELCOME)" class="w-full px-4 py-3.5 bg-white rounded-2xl border border-gray-200 text-xs focus:outline-none focus:border-purple-500 shadow-sm uppercase font-semibold text-center tracking-wider">
+                </div>
+                <button onclick="redeemCode()" id="redeem-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3.5 rounded-2xl text-xs transition-all shadow-md shadow-purple-200">
+                    ยืนยันการแลกโค้ด
+                </button>
+            </div>
+
+            <!-- ประวัติการกรอกโค้ด -->
+            <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
+                <h3 class="text-xs font-bold text-gray-700"><i class="fa-solid fa-clock-rotate-left mr-1 text-purple-500"></i> โค้ดที่คุณเคยแลกแล้ว</h3>
+                <div id="redeemed-history" class="space-y-1.5 text-xs text-gray-400">
+                    <span class="text-[11px]">กำลังโหลดประวัติ...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Bar -->
+        <div class="py-3 flex justify-center bg-white border-t border-gray-100">
+            <div class="w-32 h-1 bg-gray-300 rounded-full"></div>
+        </div>
+    </div>
+
+    <script src="supabase-config.js"></script>
+    <script>
+        const currentUser = requireAuth();
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadUserData();
+            loadRedeemedHistory();
+        });
+
+        async function loadUserData() {
+            try {
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('coin, point')
+                    .eq('email', currentUser.email)
+                    .single();
+                if (error) throw error;
+                if (data) {
+                    document.getElementById('user-balance-badge').textContent = `Coin: ${data.coin} | Point: ${data.point}`;
+                    // อัปเดตข้อมูล local storage เล็กน้อยให้ซิงค์
+                    currentUser.coin = data.coin;
+                    currentUser.point = data.point;
+                    localStorage.setItem('snd48_user', JSON.stringify(currentUser));
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function loadRedeemedHistory() {
+            try {
+                const { data, error } = await supabase
+                    .from('user_redeemed_codes')
+                    .select('*')
+                    .eq('user_email', currentUser.email)
+                    .order('redeemed_at', { ascending: false });
+
+                const historyContainer = document.getElementById('redeemed-history');
+                if (!data || data.length === 0) {
+                    historyContainer.innerHTML = '<span class="text-[11px] text-gray-400">ยังไม่มีประวัติการแลกโค้ด</span>';
+                    return;
+                }
+
+                historyContainer.innerHTML = data.map(item => `
+                    <div class="flex justify-between items-center bg-gray-50 px-3 py-2 rounded-xl border border-gray-100">
+                        <span class="font-semibold text-gray-700 uppercase">${item.code}</span>
+                        <span class="text-[10px] text-gray-400">${new Date(item.redeemed_at).toLocaleDateString('th-TH')}</span>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function redeemCode() {
+            const codeField = document.getElementById('code-input');
+            const codeVal = codeField.value.trim().toUpperCase();
+            const btn = document.getElementById('redeem-btn');
+
+            if (!codeVal) {
+                alert('กรุณากรอกโค้ด');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'กำลังตรวจสอบ...';
+
+            try {
+                // 1. ตรวจสอบว่าเคยกรอกโค้ดนี้ไปหรือยัง
+                const { data: checkRedeemed } = await supabase
+                    .from('user_redeemed_codes')
+                    .select('*')
+                    .eq('user_email', currentUser.email)
+                    .eq('code', codeVal)
+                    .single();
+
+                if (checkRedeemed) {
+                    alert('คุณเคยกรอกโค้ดนี้ไปแล้ว ไม่สามารถใช้ซ้ำได้');
+                    btn.disabled = false;
+                    btn.textContent = 'ยืนยันการแลกโค้ด';
+                    return;
+                }
+
+                // 2. ค้นหาโค้ดในระบบฐานข้อมูล codes
+                const { data: codeData, error: codeError } = await supabase
+                    .from('codes')
+                    .select('*')
+                    .eq('code', codeVal)
+                    .single();
+
+                if (codeError || !codeData) {
+                    alert('ไม่พบโค้ดนี้ในระบบ หรือโค้ดไม่ถูกต้อง');
+                    btn.disabled = false;
+                    btn.textContent = 'ยืนยันการแลกโค้ด';
+                    return;
+                }
+
+                // 3. ดึงข้อมูลผู้ใช้ปัจจุบันเพื่ออัปเดต Coin / Point
+                const { data: userData, error: userError } = await supabase
+                    .from('users')
+                    .select('coin, point')
+                    .eq('email', currentUser.email)
+                    .single();
+
+                if (userError) throw userError;
+
+                let addCoin = 0;
+                let addPoint = 0;
+                let rewardTextArray = [];
+
+                // แปลงรางวัลใน JSONB (เช่น [{type: 'coin', amount: 500}, {type: 'point', amount: 100}])
+                const rewards = codeData.rewards;
+                rewards.forEach(r => {
+                    if (r.type === 'coin') {
+                        addCoin += Number(r.amount);
+                        rewardTextArray.push(`${r.amount} Coin`);
+                    } else if (r.type === 'point') {
+                        addPoint += Number(r.amount);
+                        rewardTextArray.push(`${r.amount} Point`);
+                    }
+                });
+
+                // 4. อัปเดตเงินในตาราง users
+                const newCoin = userData.coin + addCoin;
+                const newPoint = userData.point + addPoint;
+
+                const { error: updateError } = await supabase
+                    .from('users')
+                    .update({ coin: newCoin, point: newPoint })
+                    .eq('email', currentUser.email);
+
+                if (updateError) throw updateError;
+
+                // 5. บันทึกประวัติลงตาราง user_redeemed_codes
+                const { error: insertError } = await supabase
+                    .from('user_redeemed_codes')
+                    .insert([{
+                        user_email: currentUser.email,
+                        code: codeVal
+                    }]);
+
+                if (insertError) throw insertError;
+
+                alert(`แลกโค้ดสำเร็จ! คุณได้รับ: ${rewardTextArray.join(' และ ')}`);
+                codeField.value = '';
+                loadUserData();
+                loadRedeemedHistory();
+
+            } catch (err) {
+                console.error(err);
+                alert('เกิดข้อผิดพลาดในการแลกโค้ด: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'ยืนยันการแลกโค้ด';
+            }
+        }
+    </script>
+</body>
+</html>
