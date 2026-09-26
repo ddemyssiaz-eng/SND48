@@ -4,229 +4,146 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SND48 Admin - จัดการสมาชิกวง</title>
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
-    <!-- Supabase SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Cloudinary Upload Widget -->
-    <script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript"></script>
     <style>
         * { box-sizing: border-box; font-family: 'Prompt', sans-serif; }
-        body { 
-            background: #f4f6f9; 
-            color: #0b2545; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            min-height: 100vh; 
-            margin: 0; 
-        }
+        body { background: #f4f6f9; color: #0b2545; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .phone-frame { width: 380px; height: 750px; background: #ffffff; border-radius: 40px; border: 8px solid #0b2545; box-shadow: 0 20px 40px rgba(11, 37, 69, 0.15); display: flex; flex-direction: column; padding: 20px; position: relative; overflow-y: auto; }
         
-        .phone-frame { 
-            width: 380px; 
-            height: 750px; 
-            background: #ffffff; 
-            border-radius: 40px; 
-            border: 8px solid #0b2545; 
-            box-shadow: 0 20px 40px rgba(11, 37, 69, 0.15); 
-            display: flex; 
-            flex-direction: column; 
-            padding: 20px; 
-            position: relative; 
-            overflow-y: auto; 
-        }
-
         .header { display: flex; align-items: center; margin-bottom: 15px; }
-        .back-btn { background: #f0f4f8; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-size: 1rem; color: #0b2545; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
-        .back-btn:hover { background: #e2e8f0; }
-        .header h2 { font-size: 1.1rem; margin: 0 auto; color: #0b2545; }
-        
+        .back-btn { background: #f0f4f8; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-size: 1rem; color: #0b2545; display: flex; align-items: center; justify-content: center; }
+        .header h2 { font-size: 1.05rem; margin: 0 auto; color: #0b2545; }
+
         .form-group { margin-bottom: 10px; }
         .form-group label { display: block; font-size: 0.75rem; font-weight: 600; color: #0b2545; margin-bottom: 3px; }
-        .form-group input { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.85rem; outline: none; background: #fafbfc; }
-        .form-group input:focus { border-color: #0b2545; background: #fff; }
-
-        /* ช่องอัปโหลดรูป Cloudinary */
-        .upload-preview { 
-            width: 100%; 
-            height: 90px; 
-            border: 2px dashed #cbd5e1; 
-            border-radius: 8px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            cursor: pointer; 
-            background: #f8fafc; 
-            overflow: hidden; 
-            margin-bottom: 5px; 
-            transition: 0.2s;
-        }
-        .upload-preview:hover { border-color: #0b2545; background: #f0f4f8; }
-        .upload-preview img { width: 100%; height: 100%; object-fit: cover; }
+        .form-group input, .form-group textarea { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.85rem; outline: none; background: #fafbfc; }
         
-        .action-btn { width: 100%; padding: 10px; border-radius: 8px; border: none; background: #0b2545; color: white; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: 0.2s; margin-top: 5px; }
+        .action-btn { width: 100%; padding: 10px; border-radius: 8px; border: none; background: #0b2545; color: white; font-size: 0.85rem; font-weight: 600; cursor: pointer; margin-top: 5px; }
         .action-btn:hover { background: #133863; }
 
-        /* รายชื่อสมาชิกด้านล่างสำหรับแอดมินจัดการ */
-        .member-list-admin { margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 10px; max-height: 200px; overflow-y: auto; }
-        .admin-item { display: flex; align-items: center; justify-content: space-between; background: #f8fafc; padding: 8px; border-radius: 8px; margin-bottom: 6px; border: 1px solid #e2e8f0; }
-        .admin-item img { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; margin-right: 8px; }
-        .admin-info { flex: 1; font-size: 0.8rem; }
-        .admin-info p { margin: 0; font-weight: 600; color: #0b2545; }
-        .admin-info span { font-size: 0.65rem; color: #6b7c93; }
-        .del-btn { background: #fee2e2; color: #ef4444; border: none; padding: 4px 8px; border-radius: 5px; font-size: 0.7rem; cursor: pointer; transition: 0.2s; }
-        .del-btn:hover { background: #fecaca; }
+        .member-list { margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 10px; max-height: 160px; overflow-y: auto; }
+        .member-item { background: #f8fafc; padding: 8px; border-radius: 8px; margin-bottom: 6px; border: 1px solid #e2e8f0; font-size: 0.75rem; display: flex; justify-content: space-between; align-items: center; }
+        .del-btn { background: #fee2e2; color: #ef4444; border: none; padding: 4px 8px; border-radius: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
-
     <div class="phone-frame">
         <div class="header">
             <button class="back-btn" onclick="location.href='../home.html'">❮</button>
-            <h2>Admin - จัดการสมาชิก</h2>
+            <h2>Admin - เพิ่ม/แก้ไข สมาชิก</h2>
             <div style="width: 35px;"></div>
         </div>
 
-        <!-- ฟอร์มเพิ่ม/แก้ไขสมาชิก -->
+        <input type="hidden" id="member-id">
         <div class="form-group">
-            <label>รูปศิลปิน (อัปโหลดผ่าน Cloudinary)</label>
-            <div class="upload-preview" id="upload-trigger" onclick="openCloudinaryWidget()">
-                <span id="upload-text" style="font-size: 0.75rem; color: #6b7c93;">+ คลิกเพื่ออัปโหลดรูปภาพ</span>
-            </div>
-            <input type="hidden" id="member-image">
+            <label>รูปศิลปิน (Cloudinary Image URL)</label>
+            <input type="text" id="member-img" placeholder="วางลิงก์รูปภาพจาก Cloudinary">
         </div>
-
-        <div style="display: flex; gap: 8px;">
-            <div class="form-group" style="flex: 1;">
-                <label>ชื่อเล่น</label>
-                <input type="text" id="member-nickname" placeholder="เช่น เนย">
-            </div>
-            <div class="form-group" style="flex: 1;">
-                <label>ชื่อจริง</label>
-                <input type="text" id="member-fullname" placeholder="ชื่อ-นามสกุล">
-            </div>
-        </div>
-
-        <div style="display: flex; gap: 8px;">
-            <div class="form-group" style="flex: 1;">
-                <label>วัน/เดือน/ปี เกิด</label>
-                <input type="date" id="member-dob">
-            </div>
-            <div class="form-group" style="flex: 1;">
-                <label>รุ่น (Gen)</label>
-                <input type="text" id="member-gen" placeholder="เช่น Gen 1">
-            </div>
-        </div>
-
         <div class="form-group">
-            <label>สถานะ (เช่น ปกติ, พักงาน, จบการศึกษาแล้ว)</label>
-            <input type="text" id="member-status" value="ปกติ">
+            <label>ชื่อเล่น</label>
+            <input type="text" id="member-nickname" placeholder="เช่น ฟ้อนด์">
+        </div>
+        <div class="form-group">
+            <label>ชื่อจริง - นามสกุล</label>
+            <input type="text" id="member-fullname" placeholder="เช่น ณัฐชา วต">
+        </div>
+        <div class="form-group">
+            <label>วัน/เดือน/ปี เกิด</label>
+            <input type="text" id="member-birthdate" placeholder="เช่น 3 ธันวาคม 2546">
+        </div>
+        <div class="form-group">
+            <label>รุ่น / Gen</label>
+            <input type="text" id="member-gen" placeholder="เช่น Gen 1">
+        </div>
+        <div class="form-group">
+            <label>สถานะ (เช่น สมาชิกรุ่น 1, กัปตันทีม, จบการศึกษาแล้ว)</label>
+            <input type="text" id="member-status" placeholder="ระบุสถานะปัจจุบัน">
         </div>
 
-        <button class="action-btn" onclick="saveMember()">บันทึกสมาชิกวง</button>
+        <button class="action-btn" onclick="saveMember()">บันทึกข้อมูลสมาชิก</button>
 
-        <!-- รายชื่อในระบบหลังบ้าน -->
-        <div class="member-list-admin" id="admin-member-container">
-            <!-- โหลดรายชื่อขึ้นมาแสดงที่นี่ -->
-        </div>
+        <div class="member-list" id="admin-member-container"></div>
     </div>
 
-    <!-- โหลดไฟล์ตั้งค่ากลาง -->
     <script src="../supabase-config.js"></script>
     <script>
-        // ตรวจสอบสิทธิ์แอดมิน
         const currentUser = requireAuth();
         if (currentUser.role !== 'admin') {
             alert('สำหรับ Admin เท่านั้น');
             location.href = '../home.html';
         }
 
-        let uploadedImageUrl = '';
-
-        // ตั้งค่า Cloudinary Upload Widget 
-        // (หมายเหตุ: อย่าลืมเปลี่ยน cloudName และ uploadPreset ให้ตรงกับค่าของคุณ)
-        function openCloudinaryWidget() {
-            cloudinary.createUploadWidget({
-                cloudName: 'dxicbbfw0', 
-                uploadPreset: 'snd48_preset', 
-                cropping: true
-            }, (error, result) => {
-                if (!error && result && result.event === "success") {
-                    uploadedImageUrl = result.info.secure_url;
-                    document.getElementById('upload-trigger').innerHTML = `<img src="${uploadedImageUrl}" alt="Uploaded">`;
-                    document.getElementById('member-image').value = uploadedImageUrl;
-                }
-            }).open();
-        }
-
-        // ฟังก์ชันบันทึกข้อมูลสมาชิกใหม่ลง Supabase
         async function saveMember() {
+            const id = document.getElementById('member-id').value;
+            const image_url = document.getElementById('member-img').value.trim();
             const nickname = document.getElementById('member-nickname').value.trim();
             const fullname = document.getElementById('member-fullname').value.trim();
-            const dob = document.getElementById('member-dob').value;
-            const gen = document.getElementById('member-gen').value.trim();
+            const birthdate = document.getElementById('member-birthdate').value.trim();
+            const generation = document.getElementById('member-gen').value.trim();
             const status = document.getElementById('member-status').value.trim();
 
-            if (!nickname || !uploadedImageUrl) {
-                alert('กรุณากรอกชื่อเล่นและอัปโหลดรูปภาพศิลปิน');
+            if (!nickname || !fullname || !image_url) {
+                alert('กรุณากรอกข้อมูลสำคัญ (รูปภาพ, ชื่อเล่น, ชื่อจริง)');
                 return;
             }
 
-            const { error } = await supabase.from('members').insert([{
-                nickname, 
-                fullname, 
-                dob, 
-                gen, 
-                status: status || 'ปกติ', 
-                image_url: uploadedImageUrl
-            }]);
+            const payload = { nickname, fullname, birthdate, generation, status, image_url };
+
+            let error;
+            if (id) {
+                const res = await supabase.from('members').update(payload).eq('id', id);
+                error = res.error;
+            } else {
+                const res = await supabase.from('members').insert([payload]);
+                error = res.error;
+            }
 
             if (error) {
                 alert('เกิดข้อผิดพลาด: ' + error.message);
             } else {
-                alert('เพิ่มสมาชิกสำเร็จ!');
+                alert('บันทึกข้อมูลสมาชิกสำเร็จ!');
                 location.reload();
             }
         }
 
-        // โหลดรายชื่อสมาชิกในหลังบ้านแอดมิน
-        async function loadAdminMembers() {
-            const { data, error } = await supabase.from('members').select('*').order('created_at', { ascending: false });
+        async function loadMembersList() {
+            const { data } = await supabase.from('members').select('*').order('created_at', { ascending: false });
             const container = document.getElementById('admin-member-container');
             container.innerHTML = '';
-
-            if (!data || data.length === 0) {
-                container.innerHTML = '<p style="font-size: 0.75rem; color: #a0aec0; text-align: center; margin: 10px 0;">ยังไม่มีข้อมูลสมาชิกในระบบ</p>';
-                return;
-            }
-
-            data.forEach(m => {
-                container.innerHTML += `
-                    <div class="admin-item">
-                        <img src="${m.image_url || 'https://via.placeholder.com/150'}" alt="">
-                        <div class="admin-info">
-                            <p>${m.nickname} (${m.gen || '-'})</p>
-                            <span>สถานะ: ${m.status}</span>
+            if (data) {
+                data.forEach(m => {
+                    container.innerHTML += `
+                        <div class="member-item">
+                            <div><b>${m.nickname}</b> (${m.generation})<br><span style="color:#64748b;">${m.status}</span></div>
+                            <div>
+                                <button style="background:#e0f2fe; color:#0369a1; border:none; padding:4px 8px; border-radius:5px; cursor:pointer; margin-right:4px;" onclick="editMember('${m.id}', '${m.nickname}', '${m.fullname}', '${m.birthdate}', '${m.generation}', '${m.status}', '${m.image_url}')">แก้ไข</button>
+                                <button class="del-btn" onclick="deleteMember('${m.id}')">ลบ</button>
+                            </div>
                         </div>
-                        <button class="del-btn" onclick="deleteMember('${m.id}')">ลบ</button>
-                    </div>
-                `;
-            });
-        }
-
-        // ฟังก์ชันลบสมาชิก
-        async function deleteMember(id) {
-            if (confirm('ต้องการลบสมาชิกนี้ออกจากระบบใช่หรือไม่?')) {
-                const { error } = await supabase.from('members').delete().eq('id', id);
-                if (error) {
-                    alert('ลบไม่สำเร็จ: ' + error.message);
-                } else {
-                    loadAdminMembers();
-                }
+                    `;
+                });
             }
         }
 
-        window.addEventListener('DOMContentLoaded', loadAdminMembers);
+        function editMember(id, nickname, fullname, birthdate, generation, status, image_url) {
+            document.getElementById('member-id').value = id;
+            document.getElementById('member-nickname').value = nickname;
+            document.getElementById('member-fullname').value = fullname;
+            document.getElementById('member-birthdate').value = birthdate;
+            document.getElementById('member-gen').value = generation;
+            document.getElementById('member-status').value = status;
+            document.getElementById('member-img').value = image_url;
+        }
+
+        async function deleteMember(id) {
+            if (confirm('ต้องการลบสมาชิกคนนี้ใช่หรือไม่?')) {
+                await supabase.from('members').delete().eq('id', id);
+                loadMembersList();
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', loadMembersList);
     </script>
 </body>
 </html>
