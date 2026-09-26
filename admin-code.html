@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SND48 - Admin Code Management</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        .phone-frame { max-width: 430px; height: 880px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-pink-50 via-white to-purple-50 min-h-screen flex items-center justify-center p-0 sm:p-4">
+
+    <!-- Phone Container -->
+    <div class="phone-frame bg-gray-50 w-full h-screen sm:h-[850px] sm:rounded-[40px] flex flex-col justify-between relative overflow-hidden border border-purple-100 shadow-2xl">
+        
+        <!-- Header -->
+        <div class="bg-white px-6 py-4 flex items-center justify-between border-b border-gray-100 pt-8">
+            <div class="flex items-center space-x-3">
+                <a href="admin.html" class="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-purple-50 hover:text-purple-600 transition-all">
+                    <i class="fa-solid fa-arrow-left text-xs"></i>
+                </a>
+                <h1 class="text-sm font-bold text-gray-800">Admin: จัดการโค้ดรางวัล</h1>
+            </div>
+            <button onclick="openAddCodeModal()" class="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-200">
+                <i class="fa-solid fa-plus text-xs"></i>
+            </button>
+        </div>
+
+        <!-- Content Area -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-3" id="admin-codes-list">
+            <div class="text-center py-10 text-gray-400 text-xs">กำลังโหลดข้อมูลโค้ด...</div>
+        </div>
+
+        <!-- Footer Bar -->
+        <div class="py-3 flex justify-center bg-white border-t border-gray-100">
+            <div class="w-32 h-1 bg-gray-300 rounded-full"></div>
+        </div>
+    </div>
+
+    <!-- Modal Form (Create Code) -->
+    <div id="code-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-sm font-bold text-gray-800">สร้างโค้ดรางวัลใหม่</h2>
+                <button onclick="closeCodeModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form id="code-form" onsubmit="saveCode(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-gray-600 mb-1">ตัวโค้ด (Code)</label>
+                    <input type="text" id="input-code" required placeholder="เช่น SND48NEWYEAR" class="w-full p-2.5 rounded-xl border border-gray-200 outline-none focus:border-purple-500 bg-gray-50 uppercase font-semibold">
+                </div>
+
+                <div>
+                    <label class="block text-gray-600 mb-1">วันหมดอายุ (ถ้ามี)</label>
+                    <input type="date" id="input-expiry" class="w-full p-2.5 rounded-xl border border-gray-200 outline-none focus:border-purple-500 bg-gray-50">
+                </div>
+
+                <!-- รายการรางวัล (รองรับมากกว่า 1 อย่าง) -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-gray-600 font-semibold">รายการของรางวัล</label>
+                        <button type="button" onclick="addRewardRow()" class="text-purple-600 font-semibold hover:underline text-[11px]">
+                            <i class="fa-solid fa-plus mr-1"></i> เพิ่มรางวัล
+                        </button>
+                    </div>
+                    <div id="rewards-container" class="space-y-2">
+                        <!-- แถวรางวัลเริ่มต้น 1 แถว -->
+                        <div class="reward-row flex items-center space-x-2 bg-gray-50 p-2 rounded-xl border border-gray-100">
+                            <select class="reward-type w-1/2 p-2 rounded-lg border border-gray-200 bg-white outline-none">
+                                <option value="coin">Coin</option>
+                                <option value="point">Point</option>
+                            </select>
+                            <input type="number" required min="1" placeholder="จำนวน" class="reward-amount w-1/2 p-2 rounded-lg border border-gray-200 bg-white outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" id="save-code-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl transition-all shadow-md shadow-purple-200 mt-2">
+                    บันทึกสร้างโค้ด
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="supabase-config.js"></script>
+    <script>
+        const user = requireAuth();
+        if (user.role !== 'admin') {
+            alert('สำหรับผู้ดูแลระบบเท่านั้น');
+            window.location.href = 'home.html';
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadAdminCodes();
+        });
+
+        async function loadAdminCodes() {
+            try {
+                const { data, error } = await supabase.from('codes').select('*').order('created_at', { ascending: false });
+                if (error) throw error;
+
+                const container = document.getElementById('admin-codes-list');
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<div class="text-center text-gray-400 text-xs py-10">ยังไม่มีโค้ดรางวัลในระบบ</div>';
+                    return;
+                }
+
+                container.innerHTML = data.map(c => {
+                    let rewardsStr = c.rewards.map(r => `${r.amount} ${r.type.toUpperCase()}`).join(', ');
+                    return `
+                        <div class="bg-white p-3.5 rounded-2xl flex items-center justify-between border border-gray-100 shadow-sm">
+                            <div>
+                                <h4 class="font-bold text-gray-800 text-xs uppercase tracking-wide text-purple-600">${c.code}</h4>
+                                <p class="text-[10px] text-gray-500 mt-0.5">รางวัล: ${rewardsStr}</p>
+                                <p class="text-[9px] text-gray-400">หมดอายุ: ${c.expires_at || 'ไม่กำหนด'}</p>
+                            </div>
+                            <button onclick="deleteCode('${c.id}')" class="w-8 h-8 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-all">
+                                <i class="fa-solid fa-trash text-[10px]"></i>
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function openAddCodeModal() {
+            document.getElementById('code-form').reset();
+            document.getElementById('rewards-container').innerHTML = `
+                <div class="reward-row flex items-center space-x-2 bg-gray-50 p-2 rounded-xl border border-gray-100">
+                    <select class="reward-type w-1/2 p-2 rounded-lg border border-gray-200 bg-white outline-none">
+                        <option value="coin">Coin</option>
+                        <option value="point">Point</option>
+                    </select>
+                    <input type="number" required min="1" placeholder="จำนวน" class="reward-amount w-1/2 p-2 rounded-lg border border-gray-200 bg-white outline-none">
+                </div>
+            `;
+            document.getElementById('code-modal').classList.remove('hidden');
+        }
+
+        function closeCodeModal() {
+            document.getElementById('code-modal').classList.add('hidden');
+        }
+
+        function addRewardRow() {
+            const container = document.getElementById('rewards-container');
+            const row = document.createElement('div');
+            row.className = 'reward-row flex items-center space-x-2 bg-gray-50 p-2 rounded-xl border border-gray-100';
+            row.innerHTML = `
+                <select class="reward-type w-1/2 p-2 rounded-lg border border-gray-200 bg-white outline-none">
+                    <option value="coin">Coin</option>
+                    <option value="point">Point</option>
+                </select>
+                <input type="number" required min="1" placeholder="จำนวน" class="reward-amount w-1/2 p-2 rounded-lg border border-gray-200 bg-white outline-none">
+                <button type="button" onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-600 px-1.5"><i class="fa-solid fa-xmark"></i></button>
+            `;
+            container.appendChild(row);
+        }
+
+        async function saveCode(e) {
+            e.preventDefault();
+            const btn = document.getElementById('save-code-btn');
+            btn.disabled = true;
+            btn.textContent = 'กำลังบันทึก...';
+
+            try {
+                const codeVal = document.getElementById('input-code').value.trim().toUpperCase();
+                const expiryVal = document.getElementById('input-expiry').value;
+
+                // รวบรวมข้อมูลรางวัลจากทุกแถว
+                const rewardRows = document.querySelectorAll('.reward-row');
+                let rewardsList = [];
+                rewardRows.forEach(row => {
+                    const type = row.querySelector('.reward-type').value;
+                    const amount = row.querySelector('.reward-amount').value;
+                    if (amount) {
+                        rewardsList.push({ type: type, amount: Number(amount) });
+                    }
+                });
+
+                if (rewardsList.length === 0) {
+                    alert('กรุณากำหนดของรางวัลอย่างน้อย 1 อย่าง');
+                    btn.disabled = false;
+                    btn.textContent = 'บันทึกสร้างโค้ด';
+                    return;
+                }
+
+                const { error } = await supabase.from('codes').insert([{
+                    code: codeVal,
+                    rewards: rewardsList,
+                    expires_at: expiryVal || null
+                }]);
+
+                if (error) throw error;
+
+                closeCodeModal();
+                loadAdminCodes();
+                alert('สร้างโค้ดสำเร็จ!');
+            } catch (err) {
+                console.error(err);
+                alert('เกิดข้อผิดพลาด: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'บันทึกสร้างโค้ด';
+            }
+        }
+
+        async function deleteCode(id) {
+            if (!confirm('คุณต้องการลบโค้ดนี้ใช่หรือไม่?')) return;
+            try {
+                const { error } = await supabase.from('codes').delete().eq('id', id);
+                if (error) throw error;
+                loadAdminCodes();
+            } catch (err) {
+                console.error(err);
+                alert('ไม่สามารถลบโค้ดได้');
+            }
+        }
+    </script>
+</body>
+</html>
