@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SND48 Admin - จัดการโค้ดรางวัล</title>
+    <title>SND48 Admin - จัดการโค้ด</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -12,147 +12,90 @@
         .phone-frame { width: 380px; height: 750px; background: #ffffff; border-radius: 40px; border: 8px solid #0b2545; box-shadow: 0 20px 40px rgba(11, 37, 69, 0.15); display: flex; flex-direction: column; padding: 20px; position: relative; overflow-y: auto; }
         .header { display: flex; align-items: center; margin-bottom: 15px; }
         .back-btn { background: #f0f4f8; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-size: 1rem; color: #0b2545; display: flex; align-items: center; justify-content: center; }
-        .header h2 { font-size: 1.1rem; margin: 0 auto; color: #0b2545; }
-        
+        .header h2 { font-size: 1rem; margin: 0 auto; color: #0b2545; }
         .form-group { margin-bottom: 10px; }
         .form-group label { display: block; font-size: 0.75rem; font-weight: 600; color: #0b2545; margin-bottom: 3px; }
         .form-group input, .form-group select { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.85rem; outline: none; background: #fafbfc; }
-        
-        .reward-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
-        .secondary-btn { background: #e2e8f0; color: #0b2545; padding: 6px 10px; border: none; border-radius: 6px; font-size: 0.75rem; cursor: pointer; margin-bottom: 10px; }
-        .secondary-btn:hover { background: #cbd5e1; }
-        
         .action-btn { width: 100%; padding: 10px; border-radius: 8px; border: none; background: #0b2545; color: white; font-size: 0.85rem; font-weight: 600; cursor: pointer; margin-top: 5px; }
-        .action-btn:hover { background: #133863; }
-
-        .code-list { margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 10px; max-height: 180px; overflow-y: auto; }
-        .code-item { background: #f8fafc; padding: 8px; border-radius: 8px; margin-bottom: 6px; border: 1px solid #e2e8f0; font-size: 0.75rem; display: flex; justify-content: space-between; align-items: center; }
-        .del-btn { background: #fee2e2; color: #ef4444; border: none; padding: 4px 8px; border-radius: 5px; cursor: pointer; }
+        .reward-row { display: flex; gap: 6px; margin-bottom: 5px; }
     </style>
 </head>
 <body>
     <div class="phone-frame">
         <div class="header">
-            <button class="back-btn" onclick="location.href='../home.html'">❮</button>
-            <h2>Admin - จัดการโค้ด</h2>
+            <button class="back-btn" onclick="location.href='admin-hub.html'">❮</button>
+            <h2>Admin - สร้างโค้ดรางวัล</h2>
             <div style="width: 35px;"></div>
         </div>
-
         <div class="form-group">
             <label>ตัวโค้ด (Code)</label>
-            <input type="text" id="code-text" placeholder="เช่น WELCOMESND48">
+            <input type="text" id="code-text" placeholder="เช่น WELCOME48">
         </div>
-
         <div class="form-group">
-            <label>ของรางวัล (เพิ่มได้มากกว่า 1 อย่าง)</label>
+            <label>วันหมดอายุ</label>
+            <input type="text" id="code-expire" placeholder="เช่น 31 ธันวาคม 2569">
+        </div>
+        <div class="form-group">
+            <label>รายการรางวัล (Rewards)</label>
             <div id="rewards-container">
                 <div class="reward-row">
-                    <select class="reward-type" style="flex: 1;">
+                    <select class="rew-type" style="flex: 1; padding: 6px; border-radius: 6px; border: 1px solid #cbd5e1;">
                         <option value="coin">Coin (เงิน)</option>
                         <option value="point">Point (พ้อยต์)</option>
                     </select>
-                    <input type="number" class="reward-amount" placeholder="จำนวน" style="flex: 1;">
+                    <input type="number" class="rew-amount" placeholder="จำนวน" style="flex: 1; padding: 6px; border-radius: 6px; border: 1px solid #cbd5e1;">
                 </div>
             </div>
-            <button class="secondary-btn" onclick="addRewardRow()">+ เพิ่มรางวัลอันที่ 2</button>
+            <button style="background: #e2e8f0; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; margin-top: 5px;" onclick="addRewardRow()">+ เพิ่มรางวัลอีกอย่าง</button>
         </div>
-
-        <div class="form-group">
-            <label>วันหมดอายุ</label>
-            <input type="date" id="code-expire">
-        </div>
-
-        <button class="action-btn" onclick="saveCode()">สร้างโค้ด</button>
-
-        <div class="code-list" id="admin-code-container"></div>
+        <button class="action-btn" onclick="saveCode()">บันทึกโค้ดเข้าระบบ</button>
     </div>
-
     <script src="../supabase-config.js"></script>
     <script>
         const currentUser = requireAuth();
-        if (currentUser.role !== 'admin') {
-            alert('สำหรับ Admin เท่านั้น');
-            location.href = '../home.html';
-        }
+        if (currentUser.role !== 'admin') { location.href = '../home.html'; }
 
         function addRewardRow() {
             const container = document.getElementById('rewards-container');
-            const row = document.createElement('div');
-            row.className = 'reward-row';
-            row.innerHTML = `
-                <select class="reward-type" style="flex: 1;">
-                    <option value="coin">Coin (เงิน)</option>
-                    <option value="point">Point (พ้อยต์)</option>
-                </select>
-                <input type="number" class="reward-amount" placeholder="จำนวน" style="flex: 1;">
-                <button type="button" class="del-btn" onclick="this.parentElement.remove()">✕</button>
+            container.innerHTML += `
+                <div class="reward-row">
+                    <select class="rew-type" style="flex: 1; padding: 6px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                        <option value="coin">Coin (เงิน)</option>
+                        <option value="point">Point (พ้อยต์)</option>
+                    </select>
+                    <input type="number" class="rew-amount" placeholder="จำนวน" style="flex: 1; padding: 6px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                </div>
             `;
-            container.appendChild(row);
         }
 
         async function saveCode() {
             const code = document.getElementById('code-text').value.trim().toUpperCase();
-            const expireDate = document.getElementById('code-expire').value;
+            const expires_at = document.getElementById('code-expire').value.trim();
             
-            if (!code) {
-                alert('กรุณากรอกโค้ด');
-                return;
-            }
+            const types = document.querySelectorAll('.rew-type');
+            const amounts = document.querySelectorAll('.rew-amount');
+            let rewards = [];
 
-            const rows = document.querySelectorAll('.reward-row');
-            const rewards = [];
-            rows.forEach(r => {
-                const type = r.querySelector('.reward-type').value;
-                const amount = parseInt(r.querySelector('.reward-amount').value) || 0;
-                if (amount > 0) {
-                    rewards.push({ type, amount });
+            for (let i = 0; i < types.length; i++) {
+                const amt = parseInt(amounts[i].value);
+                if (amt > 0) {
+                    rewards.push({ type: types[i].value, amount: amt });
                 }
-            });
+            }
 
-            if (rewards.length === 0) {
-                alert('กรุณากำหนดของรางวัลอย่างน้อย 1 อย่าง');
+            if (!code || rewards.length === 0) {
+                alert('กรุณากรอกโค้ดและระบุรางวัลให้ถูกต้อง');
                 return;
             }
 
-            const { error } = await supabase.from('codes').insert([{
-                code_string: code,
-                rewards: rewards,
-                expire_date: expireDate || null
-            }]);
-
+            const { error } = await supabase.from('codes').insert([{ code, rewards, expires_at }]);
             if (error) {
-                alert('เกิดข้อผิดพลาด: ' + error.message);
+                alert('เกิดข้อผิดพลาด (โค้ดอาจซ้ำ): ' + error.message);
             } else {
                 alert('สร้างโค้ดสำเร็จ!');
-                location.reload();
+                location.href = 'admin-hub.html';
             }
         }
-
-        async function loadCodes() {
-            const { data } = await supabase.from('codes').select('*').order('created_at', { ascending: false });
-            const container = document.getElementById('admin-code-container');
-            container.innerHTML = '';
-            if (data) {
-                data.forEach(c => {
-                    const rewardStr = c.rewards.map(r => `${r.amount} ${r.type.toUpperCase()}`).join(', ');
-                    container.innerHTML += `
-                        <div class="code-item">
-                            <div><b>${c.code_string}</b><br>รางวัล: ${rewardStr}</div>
-                            <button class="del-btn" onclick="deleteCode('${c.id}')">ลบ</button>
-                        </div>
-                    `;
-                });
-            }
-        }
-
-        async function deleteCode(id) {
-            if (confirm('ต้องการลบโค้ดนี้ใช่หรือไม่?')) {
-                await supabase.from('codes').delete().eq('id', id);
-                loadCodes();
-            }
-        }
-
-        window.addEventListener('DOMContentLoaded', loadCodes);
     </script>
 </body>
 </html>
