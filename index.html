@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SND48 - เข้าสู่ระบบ</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; font-family: 'Prompt', sans-serif; }
+        body { background: linear-gradient(135deg, #1e1e2f, #2b2d42); color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .auth-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); padding: 40px; border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); width: 380px; border: 1px solid rgba(255,255,255,0.1); }
+        h2 { text-align: center; margin-bottom: 25px; color: #ff416c; }
+        .input-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-size: 0.9rem; color: #ddd; }
+        input { width: 100%; padding: 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 1rem; outline: none; transition: 0.3s; }
+        input:focus { border-color: #ff416c; box-shadow: 0 0 8px rgba(255, 65, 108, 0.4); }
+        button { width: 100%; padding: 12px; background: linear-gradient(135deg, #ff416c, #ff4b2b); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: 0.3s; }
+        button:hover { opacity: 0.9; transform: translateY(-2px); }
+        .toggle-text { text-align: center; margin-top: 20px; font-size: 0.85rem; color: #aaa; cursor: pointer; }
+        .toggle-text span { color: #ff416c; font-weight: 600; }
+        .toggle-text span:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+    <div class="auth-card">
+        <h2 id="form-title">SND48 Login</h2>
+        
+        <div class="input-group">
+            <label>อีเมล (Email)</label>
+            <input type="email" id="email" placeholder="กรอกอีเมลของคุณ">
+        </div>
+        
+        <div class="input-group">
+            <label>รหัสผ่าน (Password)</label>
+            <input type="password" id="password" placeholder="กรอกรหัสผ่าน">
+        </div>
+
+        <button id="submit-btn" onclick="handleSubmit()">เข้าสู่ระบบ</button>
+
+        <div class="toggle-text" onclick="toggleMode()">
+            <p id="toggle-desc">ยังไม่มีบัญชีใช่ไหม? <span id="toggle-link">สมัครสมาชิก</span></p>
+        </div>
+    </div>
+
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // ตั้งค่าการเชื่อมต่อ Supabase ของคุณ
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let isLoginMode = true;
+
+        // เช็คว่าเคยล็อกอินค้างไว้หรือไม่ ถ้ามีให้เด้งไปหน้า home.html ทันที
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedUser = localStorage.getItem('snd48_user');
+            if (savedUser) {
+                window.location.href = 'home.html';
+            }
+        });
+
+        // สลับโหมดระหว่าง Login และ Register
+        function toggleMode() {
+            isLoginMode = !isLoginMode;
+            const title = document.getElementById('form-title');
+            const btn = document.getElementById('submit-btn');
+            const desc = document.getElementById('toggle-desc');
+
+            if (isLoginMode) {
+                title.innerText = 'SND48 Login';
+                btn.innerText = 'เข้าสู่ระบบ';
+                desc.innerHTML = 'ยังไม่มีบัญชีใช่ไหม? <span id="toggle-link">สมัครสมาชิก</span>';
+            } else {
+                title.innerText = 'SND48 Register';
+                btn.innerText = 'สมัครสมาชิก';
+                desc.innerHTML = 'มีบัญชีอยู่แล้วใช่ไหม? <span id="toggle-link">เข้าสู่ระบบ</span>';
+            }
+        }
+
+        // จัดการเมื่อกดปุ่ม Submit
+        async function handleSubmit() {
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            if (!email || !password) {
+                alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+                return;
+            }
+
+            // ตรวจสอบบัญชี Admin พิเศษตามโจทย์
+            if (email === 'lns48official@gmail.com') {
+                if (password !== 'Ins48.official') {
+                    alert('รหัสผ่านแอดมินไม่ถูกต้อง');
+                    return;
+                }
+                const adminUser = {
+                    email: email,
+                    role: 'admin',
+                    account_number: 'ADMIN-ROOT',
+                    coin: 999999,
+                    point: 999999
+                };
+                localStorage.setItem('snd48_user', JSON.stringify(adminUser));
+                window.location.href = 'home.html';
+                return;
+            }
+
+            if (isLoginMode) {
+                // ระบบเข้าสู่ระบบปกติ (เช็คจากตาราง users)
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('email', email)
+                    .eq('password', password)
+                    .single();
+
+                if (error || !data) {
+                    alert('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+                } else {
+                    localStorage.setItem('snd48_user', JSON.stringify(data));
+                    window.location.href = 'home.html';
+                }
+            } else {
+                // ระบบสมัครสมาชิก (สุ่มเลขบัญชี 10 หลัก และกำหนดค่าเริ่มต้น Coin=100, Point=50, Role=user)
+                const accountNumber = Math.floor(1000000000 + Math.random() * 9000000000).toString();
+                
+                const { data, error } = await supabase
+                    .from('users')
+                    .insert([{ 
+                        email: email, 
+                        password: password, 
+                        account_number: accountNumber, 
+                        role: 'user', 
+                        coin: 100, 
+                        point: 50 
+                    }])
+                    .select()
+                    .single();
+
+                if (error) {
+                    alert('เกิดข้อผิดพลาดในการสมัครสมาชิก (อีเมลนี้อาจถูกใช้งานแล้ว): ' + error.message);
+                } else {
+                    alert('สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ');
+                    toggleMode();
+                }
+            }
+        }
+    </script>
+</body>
+</html>
