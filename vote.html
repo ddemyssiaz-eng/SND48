@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SND48 - โหวตกิจกรรม (Vote)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        .phone-frame { max-width: 430px; height: 880px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-pink-50 via-white to-purple-50 min-h-screen flex items-center justify-center p-0 sm:p-4">
+
+    <!-- Phone Container -->
+    <div class="phone-frame bg-gray-50 w-full h-screen sm:h-[850px] sm:rounded-[40px] flex flex-col justify-between relative overflow-hidden border border-purple-100 shadow-2xl">
+        
+        <!-- Header -->
+        <div class="bg-white px-6 py-4 flex items-center justify-between border-b border-gray-100 pt-8">
+            <div class="flex items-center space-x-3">
+                <a href="home.html" class="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-purple-50 hover:text-purple-600 transition-all">
+                    <i class="fa-solid fa-arrow-left text-xs"></i>
+                </a>
+                <h1 class="text-base font-bold text-gray-800">โหวตกิจกรรม (Vote)</h1>
+            </div>
+            <!-- แสดงยอด Coin / Point ปัจจุบัน -->
+            <div class="flex items-center space-x-2 text-[10px] font-bold">
+                <span class="bg-amber-50 text-amber-600 px-2 py-1 rounded-full border border-amber-200" id="user-coin">🪙 0 C</span>
+                <span class="bg-purple-50 text-purple-600 px-2 py-1 rounded-full border border-purple-200" id="user-point">💎 0 P</span>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-4" id="vote-container">
+            <div class="text-center text-gray-400 text-xs py-10">กำลังตรวจสอบแคมเปญโหวต...</div>
+        </div>
+
+        <!-- Footer Bar -->
+        <div class="py-3 flex justify-center bg-white border-t border-gray-100">
+            <div class="w-32 h-1 bg-gray-300 rounded-full"></div>
+        </div>
+    </div>
+
+    <script src="supabase-config.js"></script>
+    <script>
+        let currentUser = requireAuth();
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            await refreshUserData();
+            loadActiveCampaign();
+        });
+
+        async function refreshUserData() {
+            try {
+                const { data } = await supabase
+                    .from('users')
+                    .select('coin, point')
+                    .eq('email', currentUser.email)
+                    .single();
+
+                if (data) {
+                    currentUser.coin = data.coin;
+                    currentUser.point = data.point;
+                    localStorage.setItem('snd48_user', JSON.stringify(currentUser));
+                    
+                    document.getElementById('user-coin').textContent = `🪙 ${data.coin} C`;
+                    document.getElementById('user-point').textContent = `💎 ${data.point} P`;
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function loadActiveCampaign() {
+            try {
+                const { data, error } = await supabase
+                    .from('vote_campaigns')
+                    .select('*')
+                    .eq('is_active', true)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
+                if (error) throw error;
+
+                const container = document.getElementById('vote-container');
+                if (!data || data.length === 0) {
+                    container.innerHTML = `
+                        <div class="bg-white p-8 rounded-3xl text-center shadow-sm border border-gray-100 my-auto">
+                            <div class="w-16 h-16 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">
+                                <i class="fa-solid fa-box-open"></i>
+                            </div>
+                            <h3 class="font-bold text-gray-800 text-sm mb-1">ขณะนี้ยังไม่มีกิจกรรมให้เข้าร่วม</h3>
+                            <p class="text-gray-400 text-xs">โปรดติดตามประกาศแคมเปญโหวตหรือการเลือกตั้งครั้งถัดไปเร็วๆ นี้!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const campaign = data[0];
+                const candidates = campaign.candidates || [];
+
+                container.innerHTML = `
+                    <div class="bg-gradient-to-r from-purple-600 to-pink-600 p-4 rounded-3xl text-white shadow-lg shadow-purple-200 mb-2">
+                        <span class="bg-white/20 text-[10px] px-2.5 py-1 rounded-full font-semibold uppercase tracking-wider">Active Campaign</span>
+                        <h2 class="text-base font-bold mt-2">${campaign.campaign_name}</h2>
+                        <p class="text-[11px] text-white/80 mt-0.5">ใช้ ${campaign.cost_amount} ${campaign.vote_cost_type === 'coin' ? 'Coin (C)' : 'Point (P)'} ต่อ 1 โหวต</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pb-4">
+                        ${candidates.map((cand, index) => `
+                            <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+                                <div>
+                                    <img src="${cand.image}" alt="${cand.name}" class="w-full h-36 object-cover rounded-xl mb-2 bg-gray-100">
+                                    <h3 class="font-bold text-gray-800 text-xs text-center line-clamp-1">${cand.name}</h3>
+                                </div>
+                                <button onclick="castVote('${campaign.id}',${index}, '${campaign.vote_cost_type}',${campaign.cost_amount})" 
+                                    class="w-full mt-3 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold py-2 rounded-xl transition-all shadow-md shadow-purple-100 flex items-center justify-center space-x-1">
+                                    <i class="fa-solid fa-check-to-slot text-[11px]"></i>
+                                    <span>โหวต</span>
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function castVote(campaignId, candidateIndex, costType, costAmount) {
+            await refreshUserData();
+
+            if (costType === 'coin' && currentUser.coin < costAmount) {
+                alert('Coin ของคุณไม่เพียงพอสำหรับการโหวต!');
+                return;
+            }
+            if (costType === 'point' && currentUser.point < costAmount) {
+                alert('Point ของคุณไม่เพียงพอสำหรับการโหวต!');
+                return;
+            }
+
+            try {
+                // 1. ดึงข้อมูลแคมเปญล่าสุด
+                const { data: campaign, error: fetchErr } = await supabase
+                    .from('vote_campaigns')
+                    .select('*')
+                    .eq('id', campaignId)
+                    .single();
+
+                if (fetchErr) throw fetchErr;
+
+                let candidates = campaign.candidates;
+                candidates[candidateIndex].votes = (candidates[candidateIndex].votes || 0) + 1;
+
+                // 2. อัปเดตคะแนนโหวตในแคมเปญ
+                const { error: updateCampaignErr } = await supabase
+                    .from('vote_campaigns')
+                    .update({ candidates: candidates })
+                    .eq('id', campaignId);
+
+                if (updateCampaignErr) throw updateCampaignErr;
+
+                // 3. หักเงิน/พ้อยต์ของผู้ใช้
+                let updatedCoin = currentUser.coin;
+                let updatedPoint = currentUser.point;
+                if (costType === 'coin') updatedCoin -= costAmount;
+                else updatedPoint -= costAmount;
+
+                const { error: updateUserErr } = await supabase
+                    .from('users')
+                    .update({ coin: updatedCoin, point: updatedPoint })
+                    .eq('email', currentUser.email);
+
+                if (updateUserErr) throw updateUserErr;
+
+                currentUser.coin = updatedCoin;
+                currentUser.point = updatedPoint;
+                localStorage.setItem('snd48_user', JSON.stringify(currentUser));
+
+                alert(`โหวตสำเร็จ! หัก ${costAmount} ${costType === 'coin' ? 'Coin' : 'Point'} เรียบร้อยแล้ว`);
+                refreshUserData();
+            } catch (err) {
+                console.error(err);
+                alert('เกิดข้อผิดพลาดในการโหวต: ' + err.message);
+            }
+        }
+    </script>
+</body>
+</html>
