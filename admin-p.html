@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SND48 - Admin Performance Management</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        .phone-frame { max-width: 430px; height: 880px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-pink-50 via-white to-purple-50 min-h-screen flex items-center justify-center p-0 sm:p-4">
+
+    <!-- Phone Container -->
+    <div class="phone-frame bg-gray-50 w-full h-screen sm:h-[850px] sm:rounded-[40px] flex flex-col justify-between relative overflow-hidden border border-purple-100 shadow-2xl">
+        
+        <!-- Header -->
+        <div class="bg-white px-6 py-4 flex items-center justify-between border-b border-gray-100 pt-8">
+            <div class="flex items-center space-x-3">
+                <a href="admin.html" class="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-purple-50 hover:text-purple-600 transition-all">
+                    <i class="fa-solid fa-arrow-left text-xs"></i>
+                </a>
+                <h1 class="text-xs font-bold text-gray-800">Admin: จัดการผลงานเพลง</h1>
+            </div>
+            <button onclick="openAddModal()" class="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-200">
+                <i class="fa-solid fa-plus text-xs"></i>
+            </button>
+        </div>
+
+        <!-- Content Area -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-3" id="admin-performances-list">
+            <div class="text-center text-gray-400 text-xs py-10">กำลังโหลดผลงานเพลง...</div>
+        </div>
+
+        <!-- Footer Bar -->
+        <div class="py-3 flex justify-center bg-white border-t border-gray-100">
+            <div class="w-32 h-1 bg-gray-300 rounded-full"></div>
+        </div>
+    </div>
+
+    <!-- Modal Form (Add Performance) -->
+    <div id="performance-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-sm font-bold text-gray-800">เพิ่มผลงานเพลงใหม่</h2>
+                <button onclick="closeAddModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form id="performance-form" onsubmit="savePerformance(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-gray-600 mb-1">ชื่อเพลง (Song Title)</label>
+                    <input type="text" id="input-title" required placeholder="เช่น Shonichi" class="w-full p-2.5 rounded-xl border border-gray-200 outline-none focus:border-purple-500 bg-gray-50">
+                </div>
+
+                <div>
+                    <label class="block text-gray-600 mb-1">ตำแหน่งเซ็นเตอร์ (Center)</label>
+                    <select id="input-center" required class="w-full p-2.5 rounded-xl border border-gray-200 outline-none focus:border-purple-500 bg-gray-50">
+                        <option value="">-- เลือกเซ็นเตอร์ --</option>
+                    </select>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-gray-600 font-semibold">รายชื่อสมาชิกในเพลง</label>
+                        <button type="button" onclick="addMemberRow()" class="text-purple-600 font-semibold hover:underline text-[11px]">
+                            <i class="fa-solid fa-plus mr-1"></i> เพิ่มสมาชิก
+                        </button>
+                    </div>
+                    <div id="members-rows-container" class="space-y-2">
+                        <!-- แอดสมาชิกแถวแรก -->
+                        <div class="member-row flex items-center space-x-2">
+                            <select class="member-select w-full p-2.5 rounded-xl border border-gray-200 bg-gray-50 outline-none" required>
+                                <option value="">-- เลือกสมาชิก --</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" id="save-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl transition-all shadow-md shadow-purple-200 mt-2">
+                    บันทึกผลงานเพลง
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="supabase-config.js"></script>
+    <script>
+        const currentUser = requireAuth();
+        if (currentUser.role !== 'admin') {
+            alert('สำหรับผู้ดูแลระบบเท่านั้น');
+            window.location.href = 'home.html';
+        }
+
+        let allMembers = [];
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            await fetchMembersData();
+            loadAdminPerformances();
+        });
+
+        async function fetchMembersData() {
+            try {
+                const { data, error } = await supabase.from('members').select('nickname, fullname');
+                if (error) throw error;
+                allMembers = data || [];
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function loadAdminPerformances() {
+            try {
+                const { data, error } = await supabase.from('performances').select('*').order('created_at', { ascending: false });
+                if (error) throw error;
+
+                const container = document.getElementById('admin-performances-list');
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<div class="text-center text-gray-400 text-xs py-10">ยังไม่มีผลงานเพลง</div>';
+                    return;
+                }
+
+                container.innerHTML = data.map(p => `
+                    <div class="bg-white p-3.5 rounded-2xl flex items-center justify-between border border-gray-100 shadow-sm">
+                        <div>
+                            <h4 class="font-bold text-gray-800 text-xs">${p.song_title}</h4>
+                            <p class="text-[10px] text-purple-600 font-semibold mt-0.5">Center: ${p.center_member}</p>
+                            <p class="text-[9px] text-gray-400">สมาชิก: ${p.members.join(', ')}</p>
+                        </div>
+                        <button onclick="deletePerformance('${p.id}')" class="w-8 h-8 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-all">
+                            <i class="fa-solid fa-trash text-[10px]"></i>
+                        </button>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function openAddModal() {
+            document.getElementById('performance-form').reset();
+            
+            // เติมตัวเลือก dropdown ของเซ็นเตอร์และสมาชิกแถวแรก
+            const centerSelect = document.getElementById('input-center');
+            centerSelect.innerHTML = '<option value="">-- เลือกเซ็นเตอร์ --</option>' + allMembers.map(m => `<option value="${m.nickname}">${m.nickname} (${m.fullname})</option>`).join('');
+
+            const container = document.getElementById('members-rows-container');
+            container.innerHTML = `
+                <div class="member-row flex items-center space-x-2">
+                    <select class="member-select w-full p-2.5 rounded-xl border border-gray-200 bg-gray-50 outline-none" required>
+                        <option value="">-- เลือกสมาชิก --</option>
+                        ${allMembers.map(m => `<option value="${m.nickname}">${m.nickname} (${m.fullname})</option>`).join('')}
+                    </select>
+                </div>
+            `;
+
+            document.getElementById('performance-modal').classList.remove('hidden');
+        }
+
+        function closeAddModal() {
+            document.getElementById('performance-modal').classList.add('hidden');
+        }
+
+        function addMemberRow() {
+            const container = document.getElementById('members-rows-container');
+            const row = document.createElement('div');
+            row.className = 'member-row flex items-center space-x-2';
+            row.innerHTML = `
+                <select class="member-select w-full p-2.5 rounded-xl border border-gray-200 bg-gray-50 outline-none" required>
+                    <option value="">-- เลือกสมาชิก --</option>
+                    ${allMembers.map(m => `<option value="${m.nickname}">${m.nickname} (${m.fullname})</option>`).join('')}
+                </select>
+                <button type="button" onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-600 px-1"><i class="fa-solid fa-xmark"></i></button>
+            `;
+            container.appendChild(row);
+        }
+
+        async function savePerformance(e) {
+            e.preventDefault();
+            const btn = document.getElementById('save-btn');
+            btn.disabled = true;
+            btn.textContent = 'กำลังบันทึก...';
+
+            try {
+                const title = document.getElementById('input-title').value.trim();
+                const center = document.getElementById('input-center').value;
+
+                const memberSelects = document.querySelectorAll('.member-select');
+                let membersList = [];
+                memberSelects.forEach(sel => {
+                    if (sel.value && !membersList.includes(sel.value)) {
+                        membersList.push(sel.value);
+                    }
+                });
+
+                if (membersList.length === 0) {
+                    alert('กรุณาเลือกสมาชิกในเพลงอย่างน้อย 1 คน');
+                    btn.disabled = false;
+                    btn.textContent = 'บันทึกผลงานเพลง';
+                    return;
+                }
+
+                const { error } = await supabase.from('performances').insert([{
+                    song_title: title,
+                    center_member: center,
+                    members: membersList
+                }]);
+
+                if (error) throw error;
+
+                closeAddModal();
+                loadAdminPerformances();
+                alert('เพิ่มผลงานเพลงสำเร็จ!');
+            } catch (err) {
+                console.error(err);
+                alert('เกิดข้อผิดพลาด: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'บันทึกผลงานเพลง';
+            }
+        }
+
+        async function deletePerformance(id) {
+            if (!confirm('คุณต้องการลบผลงานเพลงนี้ใช่หรือไม่?')) return;
+            try {
+                const { error } = await supabase.from('performances').delete().eq('id', id);
+                if (error) throw error;
+                loadAdminPerformances();
+            } catch (err) {
+                console.error(err);
+                alert('ไม่สามารถลบผลงานได้');
+            }
+        }
+    </script>
+</body>
+</html>
