@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SND48 - Admin Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        .phone-frame { max-width: 430px; height: 880px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-purple-100 via-white to-purple-50 min-h-screen flex items-center justify-center p-0 sm:p-4">
+
+    <div class="phone-frame bg-white w-full h-screen sm:h-[850px] sm:rounded-[40px] flex flex-col justify-between relative overflow-hidden border border-purple-100">
+        
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-purple-700 to-indigo-600 text-white p-6 pb-5 rounded-b-[30px] shadow-lg flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <a href="home.html" class="bg-white/20 hover:bg-white/30 w-10 h-10 rounded-xl flex items-center justify-center transition-all">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </a>
+                <div>
+                    <h1 class="text-lg font-bold">Admin Dashboard</h1>
+                    <p class="text-xs text-purple-200">ระบบจัดการหลังบ้าน SND48</p>
+                </div>
+            </div>
+            <div class="bg-white/20 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1">
+                <i class="fa-solid fa-shield-halved text-yellow-300"></i>
+                <span>ผู้ดูแลระบบ</span>
+            </div>
+        </div>
+
+        <!-- Main Content (Scrollable) -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-5">
+            
+            <!-- Welcome Banner -->
+            <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-5 rounded-3xl shadow-md space-y-1">
+                <h2 class="text-base font-bold">ยินดีต้อนรับ, แอดมิน</h2>
+                <p class="text-xs text-purple-100">จัดการระบบสมาชิก, ร้านค้า, โค้ด, ผลงาน และกิจกรรมโหวตได้จากที่นี่</p>
+            </div>
+
+            <!-- Admin Menu Grid -->
+            <div class="grid grid-cols-2 gap-4">
+                
+                <!-- 1. จัดการสมาชิก -->
+                <a href="admin-members.html" class="bg-white border border-purple-100 hover:border-purple-300 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-3 group">
+                    <div class="w-10 h-10 bg-purple-50 group-hover:bg-purple-600 text-purple-600 group-hover:text-white rounded-xl flex items-center justify-center transition-all">
+                        <i class="fa-solid fa-users-gear text-base"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-800">จัดการสมาชิกวง</h3>
+                        <p class="text-[11px] text-gray-400 mt-0.5">เพิ่ม/แก้ไขเมมเบอร์, รุ่น, สถานะ</p>
+                    </div>
+                </a>
+
+                <!-- 2. จัดการโค้ด -->
+                <a href="admin-code.html" class="bg-white border border-purple-100 hover:border-purple-300 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-3 group">
+                    <div class="w-10 h-10 bg-indigo-50 group-hover:bg-indigo-600 text-indigo-600 group-hover:text-white rounded-xl flex items-center justify-center transition-all">
+                        <i class="fa-solid fa-ticket text-base"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-800">จัดการโค้ดรางวัล</h3>
+                        <p class="text-[11px] text-gray-400 mt-0.5">สร้างโค้ดแจก Coin / Point</p>
+                    </div>
+                </a>
+
+                <!-- 3. จัดการผลงานเพลง -->
+                <a href="admin-p.html" class="bg-white border border-purple-100 hover:border-purple-300 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-3 group">
+                    <div class="w-10 h-10 bg-blue-50 group-hover:bg-blue-600 text-blue-600 group-hover:text-white rounded-xl flex items-center justify-center transition-all">
+                        <i class="fa-solid fa-music text-base"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-800">จัดการผลงานเพลง</h3>
+                        <p class="text-[11px] text-gray-400 mt-0.5">เพิ่มเพลง, เซ็นเตอร์, สมาชิกในเพลง</p>
+                    </div>
+                </a>
+
+                <!-- 4. จัดการร้านค้า -->
+                <a href="admin-shop.html" class="bg-white border border-purple-100 hover:border-purple-300 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-3 group">
+                    <div class="w-10 h-10 bg-pink-50 group-hover:bg-pink-600 text-pink-600 group-hover:text-white rounded-xl flex items-center justify-center transition-all">
+                        <i class="fa-solid fa-store text-base"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-800">จัดการร้านค้า</h3>
+                        <p class="text-[11px] text-gray-400 mt-0.5">เพิ่ม/ลบ สินค้าใน Shop</p>
+                    </div>
+                </a>
+
+                <!-- 5. จัดการระบบโหวต -->
+                <a href="admin-vote.html" class="bg-white border border-purple-100 hover:border-purple-300 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-3 group col-span-2">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-amber-50 group-hover:bg-amber-600 text-amber-600 group-hover:text-white rounded-xl flex items-center justify-center transition-all">
+                            <i class="fa-solid fa-square-poll-vertical text-base"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-800">จัดการระบบโหวต / แคมเปญ</h3>
+                            <p class="text-[11px] text-gray-400 mt-0.5">สร้างแคมเปญ, กำหนดเรทพ้อยต์, ดูคะแนนลับเฉพาะแอดมิน</p>
+                        </div>
+                    </div>
+                </a>
+
+            </div>
+
+            <!-- Return Home Button -->
+            <a href="home.html" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 rounded-2xl text-xs transition-all flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-house"></i>
+                <span>กลับสู่หน้าหลัก (มุมมองผู้ใช้งาน)</span>
+            </a>
+
+        </div>
+
+        <!-- Bottom Phone Bar Indicator -->
+        <div class="py-3 flex justify-center bg-white border-t border-gray-100">
+            <div class="w-32 h-1 bg-gray-300 rounded-full"></div>
+        </div>
+    </div>
+
+    <script src="supabase-config.js"></script>
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            const user = requireAuth();
+            if (!user || user.email !== 'lns48official@gmail.com') {
+                alert('สำหรับผู้ดูแลระบบเท่านั้น');
+                window.location.href = 'home.html';
+            }
+        });
+    </script>
+</body>
+</html>
