@@ -3,92 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SND48 - กรอกโค้ดรับรางวัล</title>
+    <title>SND48 - แลกโค้ดรางวัล (Code)</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { box-sizing: border-box; font-family: 'Prompt', sans-serif; }
         body { background: #f4f6f9; color: #0b2545; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
         .phone-frame { width: 380px; height: 750px; background: #ffffff; border-radius: 40px; border: 8px solid #0b2545; box-shadow: 0 20px 40px rgba(11, 37, 69, 0.15); display: flex; flex-direction: column; padding: 20px; position: relative; overflow-y: auto; }
-        .header { display: flex; align-items: center; margin-bottom: 25px; }
+        .header { display: flex; align-items: center; margin-bottom: 20px; }
         .back-btn { background: #f0f4f8; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-size: 1rem; color: #0b2545; display: flex; align-items: center; justify-content: center; }
-        .header h2 { font-size: 1.2rem; margin: 0 auto; color: #0b2545; }
+        .header h2 { font-size: 1.1rem; margin: 0 auto; color: #0b2545; }
         .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; text-align: center; }
-        .input-box { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 1rem; text-align: center; margin-bottom: 12px; outline: none; }
+        input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 1rem; text-align: center; margin-bottom: 12px; text-transform: uppercase; outline: none; }
         .action-btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #0b2545; color: white; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
-        .action-btn:hover { background: #133863; }
     </style>
 </head>
 <body>
     <div class="phone-frame">
         <div class="header">
             <button class="back-btn" onclick="location.href='home.html'">❮</button>
-            <h2>แลกรับโค้ดรางวัล</h2>
+            <h2>SND48 Code</h2>
             <div style="width: 35px;"></div>
         </div>
-
         <div class="card">
-            <p style="font-size: 0.85rem; color: #6b7c93; margin-top: 0;">กรอกโค้ดลับเพื่อรับ Coin หรือ Point เข้าบัญชีธนาคารของคุณทันที!</p>
-            <input type="text" id="code-input" class="input-box" placeholder="กรอกโค้ดที่นี่">
-            <button class="action-btn" onclick="redeemCode()">ยืนยันการแลกโค้ด</button>
+            <div style="font-size: 2.5rem; margin-bottom: 10px;">🎁</div>
+            <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 15px;">กรอกโค้ดลับเพื่อรับ Coin หรือ Point เข้าสู่บัญชีธนาคารของคุณทันที</p>
+            <input type="text" id="user-code" placeholder="ENTER CODE">
+            <button class="action-btn" onclick="redeemCode()">ยืนยันการใช้โค้ด</button>
         </div>
     </div>
-
     <script src="supabase-config.js"></script>
     <script>
         const currentUser = requireAuth();
 
         async function redeemCode() {
-            const codeStr = document.getElementById('code-input').value.trim().toUpperCase();
-            if (!codeStr) {
+            const codeInput = document.getElementById('user-code').value.trim().toUpperCase();
+            if (!codeInput) {
                 alert('กรุณากรอกโค้ด');
                 return;
             }
 
-            // 1. ตรวจสอบว่าโค้ดมีอยู่จริงไหม
-            const { data: codeData, error: codeErr } = await supabase
-                .from('codes')
-                .select('*')
-                .eq('code_string', codeStr)
-                .single();
-
-            if (codeErr || !codeData) {
-                alert('ไม่พบโค้ดนี้ หรือโค้ดไม่ถูกต้อง');
+            // เช็คว่าเคยกรอกโค้ดนี้ไปแล้วหรือยัง
+            const { data: used } = await supabase.from('user_redeemed_codes').select('*').eq('user_email', currentUser.email).eq('code', codeInput).single();
+            if (used) {
+                alert('คุณเคยกรอกโค้ดนี้ไปแล้ว ไม่สามารถใช้งานซ้ำได้');
                 return;
             }
 
-            // 2. ตรวจสอบวันหมดอายุ
-            if (codeData.expire_date && new Date() > new Date(codeData.expire_date)) {
-                alert('โค้ดนี้หมดอายุแล้ว');
+            // ค้นหาโค้ดในระบบ
+            const { data: codeData, error } = await supabase.from('codes').select('*').eq('code', codeInput).single();
+            if (error || !codeData) {
+                alert('ไม่พบโค้ดนี้ในระบบ หรือโค้ดอาจหมดอายุ');
                 return;
             }
 
-            // 3. ตรวจสอบว่าผู้ใช้เคยใช้โค้ดนี้ไปแล้วหรือยัง
-            const { data: usedData } = await supabase
-                .from('user_codes')
-                .select('*')
-                .eq('email', currentUser.email)
-                .eq('code_id', codeData.id)
-                .single();
-
-            if (usedData) {
-                alert('คุณได้ใช้โค้ดนี้ไปแล้ว ไม่สามารถใช้ซ้ำได้');
-                return;
-            }
-
-            // 4. บันทึกประวัติการใช้โค้ด
-            await supabase.from('user_codes').insert([{
-                email: currentUser.email,
-                code_id: codeData.id
-            }]);
-
-            // 5. ดึงยอดเงิน/พ้อยต์ปัจจุบันมาบวกเพิ่ม
-            const { data: userData } = await supabase
-                .from('users')
-                .select('coin, point')
-                .eq('email', currentUser.email)
-                .single();
-
+            // ดึงข้อมูลผู้ใช้ปัจจุบันเพื่ออัปเดตยอดเงิน/พ้อย
+            const { data: userData } = await supabase.from('users').select('*').eq('email', currentUser.email).single();
             let addCoin = 0;
             let addPoint = 0;
 
@@ -97,16 +67,17 @@
                 if (r.type === 'point') addPoint += r.amount;
             });
 
-            const newCoin = (userData.coin || 0) + addCoin;
-            const newPoint = (userData.point || 0) + addPoint;
+            // อัปเดตยอดในธนาคาร
+            await supabase.from('users').update({
+                coin: userData.coin + addCoin,
+                point: userData.point + addPoint
+            }).eq('email', currentUser.email);
 
-            await supabase
-                .from('users')
-                .update({ coin: newCoin, point: newPoint })
-                .eq('email', currentUser.email);
+            // บันทึกประวัติการกรอกโค้ด
+            await supabase.from('user_redeemed_codes').insert([{ user_email: currentUser.email, code: codeInput }]);
 
-            alert(`แลกโค้ดสำเร็จ! ได้รับ ${addCoin > 0 ? addCoin + ' Coin ' : ''}${addPoint > 0 ? addPoint + ' Point' : ''}`);
-            document.getElementById('code-input').value = '';
+            alert(`แลกโค้ดสำเร็จ! คุณได้รับ Coin +${addCoin}, Point +${addPoint}`);
+            document.getElementById('user-code').value = '';
         }
     </script>
 </body>
