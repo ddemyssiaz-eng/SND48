@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SND48 - เควส & เช็คอินรายวัน</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        .phone-frame { max-width: 430px; height: 880px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-pink-50 via-white to-purple-50 min-h-screen flex items-center justify-center p-0 sm:p-4">
+
+    <!-- Phone Container -->
+    <div class="phone-frame bg-gray-50 w-full h-screen sm:h-[850px] sm:rounded-[40px] flex flex-col justify-between relative overflow-hidden border border-purple-100 shadow-2xl">
+        
+        <!-- Header -->
+        <div class="bg-white px-6 py-4 flex items-center justify-between border-b border-gray-100 pt-8">
+            <div class="flex items-center space-x-3">
+                <a href="home.html" class="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-purple-50 hover:text-purple-600 transition-all">
+                    <i class="fa-solid fa-arrow-left text-xs"></i>
+                </a>
+                <h1 class="text-base font-bold text-gray-800">เช็คอิน & เควสประจำวัน</h1>
+            </div>
+            <div id="user-balance" class="text-[10px] bg-purple-100 text-purple-600 px-2.5 py-1 rounded-full font-semibold">
+                Coin: ...
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-5">
+            
+            <!-- ส่วนเช็คอินรายวัน -->
+            <div class="bg-white p-4 rounded-3xl border border-purple-100 shadow-sm space-y-3">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xs font-bold text-gray-800"><i class="fa-solid fa-calendar-check text-purple-600 mr-1"></i> เช็คอินรายวัน 7 วัน</h2>
+                    <span id="streak-info" class="text-[10px] text-purple-500 font-semibold">ติดต่อกัน: 0 วัน</span>
+                </div>
+                
+                <!-- กล่องแสดง 7 วัน -->
+                <div class="grid grid-cols-4 gap-2" id="checkin-grid">
+                    <!-- โหลดด้วย JavaScript -->
+                </div>
+
+                <button onclick="claimDailyCheckin()" id="checkin-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2.5 rounded-xl text-xs transition-all shadow-md shadow-purple-200">
+                    เช็คอินวันนี้
+                </button>
+            </div>
+
+            <!-- ส่วนเควสประจำวัน -->
+            <div class="space-y-3">
+                <h2 class="text-xs font-bold text-gray-800 px-1"><i class="fa-solid fa-list-check text-purple-600 mr-1"></i> เควสภารกิจ</h2>
+                <div id="quests-list" class="space-y-2">
+                    <div class="text-center text-gray-400 text-xs py-6">กำลังโหลดเควส...</div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer Bar -->
+        <div class="py-3 flex justify-center bg-white border-t border-gray-100">
+            <div class="w-32 h-1 bg-gray-300 rounded-full"></div>
+        </div>
+    </div>
+
+    <script src="supabase-config.js"></script>
+    <script>
+        const currentUser = requireAuth();
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadUserData();
+            loadCheckinStatus();
+            loadQuests();
+        });
+
+        async function loadUserData() {
+            try {
+                const { data } = await supabase.from('users').select('coin, point').eq('email', currentUser.email).single();
+                if (data) {
+                    document.getElementById('user-balance').textContent = `Coin: ${data.coin} | Point: ${data.point}`;
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // --- ระบบเช็คอิน ---
+        async function loadCheckinStatus() {
+            try {
+                const { data } = await supabase.from('user_checkins').select('*').eq('user_email', currentUser.email).single();
+                
+                let lastCheckinDate = data ? data.last_checkin_date : null;
+                let streak = data ? data.streak_count : 0;
+                
+                document.getElementById('streak-info').textContent = `ติดต่อกัน: ${streak} วัน`;
+
+                const todayStr = new Date().toISOString().split('T')[0];
+                const alreadyCheckedToday = lastCheckinDate === todayStr;
+
+                if (alreadyCheckedToday) {
+                    const btn = document.getElementById('checkin-btn');
+                    btn.textContent = 'เช็คอินวันนี้เรียบร้อยแล้ว';
+                    btn.disabled = true;
+                    btn.className = 'w-full bg-gray-200 text-gray-400 font-semibold py-2.5 rounded-xl text-xs cursor-not-allowed';
+                }
+
+                // สร้างตารางแสดง 7 วันจำลอง
+                const grid = document.getElementById('checkin-grid');
+                let html = '';
+                for (let i = 1; i <= 7; i++) {
+                    let isDone = i <= streak && (alreadyCheckedToday || i < streak);
+                    html += `
+                        <div class="bg-gray-50 border ${isDone ? 'border-purple-500 bg-purple-50 text-purple-600' : 'border-gray-100 text-gray-400'} p-2 rounded-2xl text-center flex flex-col justify-center items-center">
+                            <span class="text-[10px] font-semibold">วันที่ ${i}</span>
+                            <i class="fa-solid ${isDone ? 'fa-circle-check text-purple-600' : 'fa-coins text-gray-300'} my-1 text-sm"></i>
+                            <span class="text-[9px]">+${i * 50} Coin</span>
+                        </div>
+                    `;
+                }
+                grid.innerHTML = html;
+
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function claimDailyCheckin() {
+            try {
+                const todayStr = new Date().toISOString().split('T')[0];
+                
+                // ดึงข้อมูลเช็คอินเดิม
+                const { data: checkinData } = await supabase.from('user_checkins').select('*').eq('user_email', currentUser.email).single();
+                
+                let newStreak = 1;
+                if (checkinData) {
+                    const lastDate = new Date(checkinData.last_checkin_date);
+                    const today = new Date(todayStr);
+                    const diffTime = Math.abs(today - lastDate);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                    if (diffDays === 1) {
+                        newStreak = checkinData.streak_count + 1;
+                        if (newStreak > 7) newStreak = 1; // วนลูปครบ 7 วัน
+                    } else if (diffDays === 0) {
+                        alert('คุณเช็คอินไปแล้วในวันนี้');
+                        return;
+                    } else {
+                        newStreak = 1; // ขาดช่วงนับใหม่
+                    }
+                }
+
+                const rewardCoins = newStreak * 50;
+
+                // อัปเดตตาราง user_checkins
+                if (checkinData) {
+                    await supabase.from('user_checkins').update({
+                        last_checkin_date: todayStr,
+                        streak_count: newStreak
+                    }).eq('user_email', currentUser.email);
+                } else {
+                    await supabase.from('user_checkins').insert([{
+                        user_email: currentUser.email,
+                        last_checkin_date: todayStr,
+                        streak_count: newStreak
+                    }]);
+                }
+
+                // เพิ่ม Coin ให้ผู้ใช้
+                const { data: userD } = await supabase.from('users').select('coin').eq('email', currentUser.email).single();
+                await supabase.from('users').update({ coin: userD.coin + rewardCoins }).eq('email', currentUser.email);
+
+                alert(`เช็คอินสำเร็จ! คุณได้รับ ${rewardCoins} Coin`);
+                loadUserData();
+                loadCheckinStatus();
+
+            } catch (err) {
+                console.error(err);
+                alert('เกิดข้อผิดพลาดในการเช็คอิน');
+            }
+        }
+
+        // --- ระบบเควส ---
+        async function loadQuests() {
+            try {
+                // ดึงเควสทั้งหมด
+                const { data: quests } = await supabase.from('quests').select('*');
+                // ดึงเควสที่ผู้ใช้ทำไปแล้วในวันนี้
+                const { data: userQuests } = await supabase.from('user_quests').select('*').eq('user_email', currentUser.email);
+
+                const container = document.getElementById('quests-list');
+                if (!quests || quests.length === 0) {
+                    container.innerHTML = '<div class="text-center text-gray-400 text-xs py-4">ไม่มีเควสในระบบตอนนี้</div>';
+                    return;
+                }
+
+                container.innerHTML = quests.map(q => {
+                    const completedRecord = userQuests?.find(uq => uq.quest_id === q.id && uq.is_claimed);
+                    const isClaimed = !!completedRecord;
+
+                    return `
+                        <div class="bg-white p-3.5 rounded-2xl flex items-center justify-between border border-gray-100 shadow-sm">
+                            <div class="space-y-0.5">
+                                <h4 class="font-bold text-gray-800 text-xs">${q.title}</h4>
+                                <p class="text-[10px] text-gray-400">${q.description}</p>
+                                <span class="text-[10px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded-md font-semibold">+${q.reward_amount} ${q.reward_type.toUpperCase()}</span>
+                            </div>
+                            <button onclick="claimQuest('${q.id}', '${q.reward_type}', ${q.reward_amount})" ${isClaimed ? 'disabled' : ''} class="px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${isClaimed ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 text-white shadow-md shadow-purple-200'}">
+                                ${isClaimed ? 'รับแล้ว' : 'รับรางวัล'}
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function claimQuest(questId, rewardType, rewardAmount) {
+            try {
+                // บันทึกสถานะว่ารับเควสนี้แล้ว
+                const { error: insertErr } = await supabase.from('user_quests').insert([{
+                    user_email: currentUser.email,
+                    quest_id: questId,
+                    is_claimed: true
+                }]);
+
+                if (insertErr) throw insertErr;
+
+                // เพิ่มยอดเงินให้ผู้ใช้
+                const { data: userD } = await supabase.from('users').select('coin, point').eq('email', currentUser.email).single();
+                let updateData = {};
+                if (rewardType === 'coin') {
+                    updateData.coin = userD.coin + rewardAmount;
+                } else {
+                    updateData.point = userD.point + rewardAmount;
+                }
+
+                await supabase.from('users').update(updateData).eq('email', currentUser.email);
+
+                alert(`รับรางวัลเควสสำเร็จ! (+${rewardAmount} ${rewardType.toUpperCase()})`);
+                loadUserData();
+                loadQuests();
+
+            } catch (err) {
+                console.error(err);
+                alert('คุณอาจจะรับเควสนี้ไปแล้ว หรือเกิดข้อผิดพลาด');
+            }
+        }
+    </script>
+</body>
+</html>
