@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SND48 - Admin Vote Management</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        .phone-frame { max-width: 430px; height: 880px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-pink-50 via-white to-purple-50 min-h-screen flex items-center justify-center p-0 sm:p-4">
+
+    <!-- Phone Container -->
+    <div class="phone-frame bg-gray-50 w-full h-screen sm:h-[850px] sm:rounded-[40px] flex flex-col justify-between relative overflow-hidden border border-purple-100 shadow-2xl">
+        
+        <!-- Header -->
+        <div class="bg-white px-6 py-4 flex items-center justify-between border-b border-gray-100 pt-8">
+            <div class="flex items-center space-x-3">
+                <a href="admin.html" class="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-purple-50 hover:text-purple-600 transition-all">
+                    <i class="fa-solid fa-arrow-left text-xs"></i>
+                </a>
+                <h1 class="text-xs font-bold text-gray-800">Admin: จัดการระบบโหวต</h1>
+            </div>
+            <button onclick="openAddModal()" class="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-200">
+                <i class="fa-solid fa-plus text-xs"></i>
+            </button>
+        </div>
+
+        <!-- Content Area -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-4" id="admin-vote-list">
+            <div class="text-center text-gray-400 text-xs py-10">กำลังโหลดแคมเปญโหวต...</div>
+        </div>
+
+        <!-- Footer Bar -->
+        <div class="py-3 flex justify-center bg-white border-t border-gray-100">
+            <div class="w-32 h-1 bg-gray-300 rounded-full"></div>
+        </div>
+    </div>
+
+    <!-- Modal Form (Create Campaign) -->
+    <div id="vote-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-sm font-bold text-gray-800">สร้างแคมเปญโหวตใหม่</h2>
+                <button onclick="closeAddModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form id="vote-form" onsubmit="saveCampaign(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-gray-600 mb-1">ชื่อแคมเปญ / กิจกรรม</label>
+                    <input type="text" id="input-campaign-name" required placeholder="เช่น General Election ครั้งที่ 1" class="w-full p-2.5 rounded-xl border border-gray-200 outline-none focus:border-purple-500 bg-gray-50">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-gray-600 mb-1">สกุลเงินที่ใช้โหวต</label>
+                        <select id="input-cost-type" class="w-full p-2.5 rounded-xl border border-gray-200 outline-none focus:border-purple-500 bg-gray-50">
+                            <option value="point">Point (P)</option>
+                            <option value="coin">Coin (C)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-600 mb-1">จำนวนต่อ 1 โหวต</label>
+                        <input type="number" id="input-cost-amount" required min="1" value="10" class="w-full p-2.5 rounded-xl border border-gray-200 outline-none focus:border-purple-500 bg-gray-50">
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-gray-600 font-semibold">รายชื่อผู้แข่งขัน (Candidates)</label>
+                        <button type="button" onclick="addCandidateRow()" class="text-purple-600 font-semibold hover:underline text-[11px]">
+                            <i class="fa-solid fa-plus mr-1"></i> เพิ่มผู้แข่งขัน
+                        </button>
+                    </div>
+                    <div id="candidates-rows-container" class="space-y-3">
+                        <!-- แถวผู้แข่งขันแถวแรก -->
+                        <div class="candidate-row bg-gray-50 p-2.5 rounded-2xl border border-gray-200 space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-gray-500">ผู้แข่งขันคนที่ 1</span>
+                            </div>
+                            <input type="text" class="cand-name w-full p-2 rounded-xl border border-gray-200 bg-white outline-none" placeholder="ชื่อผู้แข่งขัน" required>
+                            <input type="file" class="cand-img w-full p-2 rounded-xl border border-gray-200 bg-white outline-none text-[10px]" accept="image/*" required>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" id="save-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl transition-all shadow-md shadow-purple-200 mt-2">
+                    เผยแพร่แคมเปญโหวต
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="supabase-config.js"></script>
+    <script>
+        const currentUser = requireAuth();
+        if (currentUser.role !== 'admin') {
+            alert('สำหรับผู้ดูแลระบบเท่านั้น');
+            window.location.href = 'home.html';
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadAdminCampaigns();
+        });
+
+        async function loadAdminCampaigns() {
+            try {
+                const { data, error } = await supabase.from('vote_campaigns').select('*').order('created_at', { ascending: false });
+                if (error) throw error;
+
+                const container = document.getElementById('admin-vote-list');
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<div class="text-center text-gray-400 text-xs py-10">ยังไม่มีแคมเปญโหวตในระบบ</div>';
+                    return;
+                }
+
+                container.innerHTML = data.map(c => `
+                    <div class="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="text-[9px] bg-purple-50 text-purple-600 font-semibold px-2 py-0.5 rounded-full">
+                                    ${c.is_active ? '🟢 กำลังเปิดโหวต' : '🔴 ปิดแล้ว'}
+                                </span>
+                                <h3 class="font-bold text-gray-800 text-sm mt-1">${c.campaign_name}</h3>
+                                <p class="text-[10px] text-gray-400">อัตรา: ${c.cost_amount} ${c.vote_cost_type === 'coin' ? 'Coin' : 'Point'} / โหวต</p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button onclick="toggleCampaignStatus('${c.id}', ${c.is_active})" class="w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 text-xs" title="เปิด/ปิด แคมเปญ">
+                                    <i class="fa-solid fa-power-off"></i>
+                                </button>
+                                <button onclick="deleteCampaign('${c.id}')" class="w-8 h-8 rounded-xl bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-500 text-xs" title="ลบแคมเปญ">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- คะแนนลับ (เห็นเฉพาะ Admin) -->
+                        <div class="border-t border-gray-50 pt-2">
+                            <span class="text-[10px] font-bold text-purple-600 block mb-1.5"><i class="fa-solid fa-lock text-[9px] mr-1"></i> คะแนนโหวตปัจจุบัน (ลับเฉพาะ Admin):</span>
+                            <div class="grid grid-cols-2 gap-2">
+                                ${c.candidates.map(cand => `
+                                    <div class="bg-gray-50 p-2 rounded-xl flex items-center space-x-2 border border-gray-100">
+                                        <img src="${cand.image}" class="w-8 h-8 rounded-lg object-cover">
+                                        <div class="overflow-hidden">
+                                            <p class="text-[10px] font-bold text-gray-800 truncate">${cand.name}</p>
+                                            <p class="text-[10px] text-purple-600 font-extrabold">${cand.votes || 0} คะแนน</p>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function openAddModal() {
+            document.getElementById('vote-form').reset();
+            document.getElementById('candidates-rows-container').innerHTML = `
+                <div class="candidate-row bg-gray-50 p-2.5 rounded-2xl border border-gray-200 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] font-bold text-gray-500">ผู้แข่งขันคนที่ 1</span>
+                    </div>
+                    <input type="text" class="cand-name w-full p-2 rounded-xl border border-gray-200 bg-white outline-none" placeholder="ชื่อผู้แข่งขัน" required>
+                    <input type="file" class="cand-img w-full p-2 rounded-xl border border-gray-200 bg-white outline-none text-[10px]" accept="image/*" required>
+                </div>
+            `;
+            document.getElementById('vote-modal').classList.remove('hidden');
+        }
+
+        function closeAddModal() {
+            document.getElementById('vote-modal').classList.add('hidden');
+        }
+
+        function addCandidateRow() {
+            const container = document.getElementById('candidates-rows-container');
+            const count = container.children.length + 1;
+            const row = document.createElement('div');
+            row.className = 'candidate-row bg-gray-50 p-2.5 rounded-2xl border border-gray-200 space-y-2';
+            row.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] font-bold text-gray-500">ผู้แข่งขันคนที่ ${count}</span>
+                    <button type="button" onclick="this.parentElement.parentElement.remove()" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <input type="text" class="cand-name w-full p-2 rounded-xl border border-gray-200 bg-white outline-none" placeholder="ชื่อผู้แข่งขัน" required>
+                <input type="file" class="cand-img w-full p-2 rounded-xl border border-gray-200 bg-white outline-none text-[10px]" accept="image/*" required>
+            `;
+            container.appendChild(row);
+        }
+
+        async function saveCampaign(e) {
+            e.preventDefault();
+            const btn = document.getElementById('save-btn');
+            btn.disabled = true;
+            btn.textContent = 'กำลังอัปโหลดรูปและสร้างแคมเปญ...';
+
+            try {
+                const campaign_name = document.getElementById('input-campaign-name').value.trim();
+                const vote_cost_type = document.getElementById('input-cost-type').value;
+                const cost_amount = parseInt(document.getElementById('input-cost-amount').value);
+
+                const rows = document.querySelectorAll('.candidate-row');
+                let candidates = [];
+
+                for (let row of rows) {
+                    const name = row.querySelector('.cand-name').value.trim();
+                    const fileInput = row.querySelector('.cand-img');
+
+                    if (fileInput.files.length === 0) throw new Error('กรุณาอัปโหลดรูปผู้แข่งขันให้ครบทุกท่าน');
+
+                    // อัปโหลดรูปไปยัง Cloudinary
+                    const file = fileInput.files[0];
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('upload_preset', 'SND48-PROJECT');
+
+                    const cloudinaryRes = await fetch('https://api.cloudinary.com/v1_1/lz6pjz6r/image/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const cloudinaryData = await cloudinaryRes.json();
+                    if (!cloudinaryData.secure_url) throw new Error('อัปโหลดรูปภาพผู้แข่งขันไม่สำเร็จ');
+
+                    candidates.push({
+                        name: name,
+                        image: cloudinaryData.secure_url,
+                        votes: 0
+                    });
+                }
+
+                const { error } = await supabase.from('vote_campaigns').insert([{
+                    campaign_name,
+                    vote_cost_type,
+                    cost_amount,
+                    candidates,
+                    is_active: true
+                }]);
+
+                if (error) throw error;
+
+                closeAddModal();
+                loadAdminCampaigns();
+                alert('สร้างแคมเปญโหวตสำเร็จ!');
+            } catch (err) {
+                console.error(err);
+                alert('เกิดข้อผิดพลาด: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'เผยแพร่แคมเปญโหวต';
+            }
+        }
+
+        async function toggleCampaignStatus(id, currentStatus) {
+            try {
+                const { error } = await supabase
+                    .from('vote_campaigns')
+                    .update({ is_active: !currentStatus })
+                    .eq('id', id);
+
+                if (error) throw error;
+                loadAdminCampaigns();
+            } catch (err) {
+                console.error(err);
+                alert('ไม่สามารถเปลี่ยนสถานะแคมเปญได้');
+            }
+        }
+
+        async function deleteCampaign(id) {
+            if (!confirm('คุณต้องการลบแคมเปญโหวตนี้ใช่หรือไม่?')) return;
+            try {
+                const { error } = await supabase.from('vote_campaigns').delete().eq('id', id);
+                if (error) throw error;
+                loadAdminCampaigns();
+            } catch (err) {
+                console.error(err);
+                alert('ไม่สามารถลบแคมเปญได้');
+            }
+        }
+    </script>
+</body>
+</html>
