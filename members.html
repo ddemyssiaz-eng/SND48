@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SND48 - Members (สมาชิกวง)</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { box-sizing: border-box; font-family: 'Prompt', sans-serif; }
+        body { 
+            background: #f4f6f9; /* สีขาวมุกพรีเมียม */
+            color: #0b2545; /* สีน้ำเงินเข้ม */
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            margin: 0; 
+        }
+        
+        .phone-frame { 
+            width: 380px; 
+            height: 750px; 
+            background: #ffffff; 
+            border-radius: 40px; 
+            border: 8px solid #0b2545; 
+            box-shadow: 0 20px 40px rgba(11, 37, 69, 0.15); 
+            display: flex; 
+            flex-direction: column; 
+            padding: 20px; 
+            position: relative; 
+            overflow-y: auto; 
+        }
+
+        /* ส่วนหัวและปุ่มย้อนกลับ */
+        .header { display: flex; align-items: center; margin-bottom: 20px; }
+        .back-btn { background: #f0f4f8; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-size: 1rem; color: #0b2545; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .back-btn:hover { background: #e2e8f0; }
+        .header h2 { font-size: 1.2rem; margin: 0 auto; color: #0b2545; }
+
+        /* ตารางแสดงรายชื่อสมาชิก (Grid) */
+        .member-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding-bottom: 20px; }
+        .member-card { 
+            background: #f8fafc; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 16px; 
+            overflow: hidden; 
+            text-align: center; 
+            cursor: pointer; 
+            transition: 0.2s; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.03); 
+        }
+        .member-card:hover { transform: translateY(-3px); border-color: #0b2545; }
+        .member-card img { width: 100%; height: 130px; object-fit: cover; }
+        .member-card .info { padding: 8px; }
+        .member-card p { margin: 0; font-size: 0.85rem; font-weight: 600; color: #0b2545; }
+        .member-card span { font-size: 0.7rem; color: #6b7c93; }
+
+        /* Modal รายละเอียดสมาชิก */
+        .modal { 
+            display: none; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(11, 37, 69, 0.6); 
+            backdrop-filter: blur(4px);
+            justify-content: center; 
+            align-items: center; 
+            z-index: 10; 
+        }
+        .modal-content { 
+            background: white; 
+            width: 90%; 
+            height: 88%; 
+            border-radius: 25px; 
+            padding: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            position: relative; 
+            overflow-y: auto; 
+        }
+        .close-modal { 
+            position: absolute; 
+            top: 15px; 
+            right: 15px; 
+            background: #f0f4f8; 
+            border: none; 
+            width: 30px; 
+            height: 30px; 
+            border-radius: 50%; 
+            cursor: pointer; 
+            font-weight: bold; 
+            color: #0b2545;
+        }
+        .modal-img { width: 100%; height: 180px; border-radius: 15px; object-fit: cover; margin-bottom: 12px; }
+        
+        .detail-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; font-size: 0.8rem; margin-bottom: 12px; }
+        .detail-box p { margin: 4px 0; color: #0b2545; }
+        .detail-box span { color: #6b7c93; }
+
+        /* ปุ่มโอชิ / คามิโอชิ */
+        .oshi-btn-group { display: flex; gap: 8px; margin-bottom: 12px; }
+        .oshi-btn { flex: 1; padding: 8px; border-radius: 10px; border: 1px solid #0b2545; background: white; color: #0b2545; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .oshi-btn.active { background: #0b2545; color: white; }
+
+        /* รายชื่อผลงานเพลงที่เมมเบอร์คนนี้อยู่ */
+        .song-list-title { font-size: 0.85rem; font-weight: 600; color: #0b2545; margin: 0 0 6px 0; }
+        .song-badge-container { display: flex; flex-direction: column; gap: 6px; max-height: 100px; overflow-y: auto; }
+        .song-badge { background: #e0f2fe; color: #0369a1; padding: 6px 10px; border-radius: 8px; font-size: 0.75rem; display: flex; justify-content: space-between; align-items: center; border: 1px solid #bae6fd; }
+    </style>
+</head>
+<body>
+
+    <div class="phone-frame">
+        <!-- ส่วนหัว -->
+        <div class="header">
+            <button class="back-btn" onclick="location.href='home.html'">❮</button>
+            <h2>SND48 Members</h2>
+            <div style="width: 35px;"></div>
+        </div>
+
+        <!-- ตารางแสดงสมาชิก -->
+        <div class="member-grid" id="member-grid">
+            <!-- ข้อมูลสมาชิกจะถูกโหลดมาแสดงที่นี่ -->
+        </div>
+    </div>
+
+    <!-- Modal รายละเอียดเมมเบอร์ -->
+    <div class="modal" id="member-modal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal()">✕</button>
+            <img id="m-img" class="modal-img" src="" alt="">
+            <h3 id="m-nickname" style="margin: 0 0 2px 0; color: #0b2545; font-size: 1.1rem;"></h3>
+            <p id="m-fullname" style="margin: 0 0 10px 0; font-size: 0.75rem; color: #6b7c93;"></p>
+            
+            <div class="detail-box">
+                <p><b>วัน/เดือน/ปี เกิด:</b> <span id="m-dob">-</span></p>
+                <p><b>รุ่น (Gen):</b> <span id="m-gen">-</span></p>
+                <p><b>สถานะ:</b> <span id="m-status">-</span></p>
+            </div>
+
+            <!-- ปุ่มเลือกโอชิ / คามิโอชิ -->
+            <div class="oshi-btn-group">
+                <button class="oshi-btn" id="btn-oshi" onclick="toggleOshi()">❤️ โอชิ (Oshi)</button>
+                <button class="oshi-btn" id="btn-kami" onclick="toggleKami()">👑 คามิโอชิ (Kami)</button>
+            </div>
+
+            <!-- รายชื่อผลงานเพลง -->
+            <p class="song-list-title">🎶 ผลงานเพลงที่เข้าร่วม</p>
+            <div class="song-badge-container" id="m-songs">
+                <span style="font-size: 0.75rem; color: #a0aec0;">กำลังโหลดผลงานเพลง...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- โหลดไฟล์ตั้งค่ากลาง -->
+    <script src="supabase-config.js"></script>
+    <script>
+        const currentUser = requireAuth();
+        let selectedMember = null;
+        
+        // โหลดข้อมูลโอชิและคามิโอชิจาก localStorage ของผู้ใช้นี้
+        let userOshis = JSON.parse(localStorage.getItem(`oshi_${currentUser.email}`)) || [];
+        let userKami = localStorage.getItem(`kami_${currentUser.email}`) || null;
+
+        // โหลดรายชื่อสมาชิกจาก Supabase
+        async function loadMembers() {
+            const { data, error } = await supabase.from('members').select('*').order('created_at', { ascending: true });
+            const grid = document.getElementById('member-grid');
+            grid.innerHTML = '';
+
+            if (error || !data || data.length === 0) {
+                grid.innerHTML = '<p style="grid-column: span 2; text-align: center; font-size: 0.8rem; color: #a0aec0; margin-top: 40px;">ยังไม่มีข้อมูลสมาชิกในวง</p>';
+                return;
+            }
+
+            data.forEach(m => {
+                grid.innerHTML += `
+                    <div class="member-card" onclick='openModal(${JSON.stringify(m)})'>
+                        <img src="${m.image_url || 'https://via.placeholder.com/150'}" alt="${m.nickname}">
+                        <div class="info">
+                            <p>${m.nickname}</p>
+                            <span>${m.gen || 'Gen -'}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // เปิด Modal แสดงข้อมูลเชิงลึกของเมมเบอร์
+        async function openModal(member) {
+            selectedMember = member;
+            document.getElementById('m-img').src = member.image_url || '';
+            document.getElementById('m-nickname').innerText = member.nickname;
+            document.getElementById('m-fullname').innerText = `ชื่อจริง: ${member.fullname || '-'}`;
+            document.getElementById('m-dob').innerText = member.dob || '-';
+            document.getElementById('m-gen').innerText = member.gen || '-';
+            document.getElementById('m-status').innerText = member.status || 'ปกติ';
+
+            updateOshiButtons();
+            await loadMemberSongs(member.nickname);
+
+            document.getElementById('member-modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('member-modal').style.display = 'none';
+        }
+
+        // อัปเดตสถานะปุ่มโอชิ / คามิโอชิ
+        function updateOshiButtons() {
+            const oshiBtn = document.getElementById('btn-oshi');
+            const kamiBtn = document.getElementById('btn-kami');
+
+            if (userOshis.includes(selectedMember.id)) {
+                oshiBtn.classList.add('active');
+                oshiBtn.innerText = '❤️ ยกเลิกโอชิ';
+            } else {
+                oshiBtn.classList.remove('active');
+                oshiBtn.innerText = '❤️ โอชิ (Oshi)';
+            }
+
+            if (userKami === selectedMember.id) {
+                kamiBtn.classList.add('active');
+                kamiBtn.innerText = '👑 คามิโอชิแล้ว';
+            } else {
+                kamiBtn.classList.remove('active');
+                kamiBtn.innerText = '👑 คามิโอชิ (Kami)';
+            }
+        }
+
+        // กดสลับสถานะโอชิ (โอชิได้หลายคน)
+        function toggleOshi() {
+            if (userOshis.includes(selectedMember.id)) {
+                userOshis = userOshis.filter(id => id !== selectedMember.id);
+            } else {
+                userOshis.push(selectedMember.id);
+            }
+            localStorage.setItem(`oshi_${currentUser.email}`, JSON.stringify(userOshis));
+            updateOshiButtons();
+        }
+
+        // กดสลับสถานะคามิโอชิ (มีได้แค่ 1 คนเสมอ)
+        function toggleKami() {
+            if (userKami === selectedMember.id) {
+                userKami = null;
+            } else {
+                userKami = selectedMember.id;
+            }
+            localStorage.setItem(`kami_${currentUser.email}`, userKami);
+            updateOshiButtons();
+        }
+
+        // โหลดผลงานเพลงที่สมาชิกคนนี้มีชื่ออยู่ (ดึงจากตาราง performance)
+        async function loadMemberSongs(nickname) {
+            const container = document.getElementById('m-songs');
+            container.innerHTML = '<span style="font-size: 0.75rem; color: #a0aec0;">กำลังโหลด...</span>';
+
+            const { data, error } = await supabase.from('performances').select('*');
+            
+            if (error || !data) {
+                container.innerHTML = '<span style="font-size: 0.75rem; color: #e53e3e;">ไม่สามารถโหลดข้อมูลเพลงได้</span>';
+                return;
+            }
+
+            // กรองหาเพลงที่สมาชิกคนนี้อยู่ในรายชื่อสมาชิก หรือเป็นเซ็นเตอร์
+            const memberSongs = data.filter(song => {
+                const membersList = song.members || [];
+                return membersList.includes(nickname) || song.center === nickname;
+            });
+
+            container.innerHTML = '';
+            if (memberSongs.length === 0) {
+                container.innerHTML = '<span style="font-size: 0.75rem; color: #a0aec0;">ยังไม่มีผลงานเพลงในระบบ</span>';
+                return;
+            }
+
+            memberSongs.forEach(song => {
+                const isCenter = song.center === nickname;
+                container.innerHTML += `
+                    <div class="song-badge">
+                        <span>🎵 <b>${song.song_name}</b></span>
+                        <span style="font-size: 0.7rem; color: ${isCenter ? '#d97706' : '#0369a1'}; font-weight: 600;">
+                            ${isCenter ? '⭐ Center' : 'Member'}
+                        </span>
+                    </div>
+                `;
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', loadMembers);
+    </script>
+</body>
+</html>
