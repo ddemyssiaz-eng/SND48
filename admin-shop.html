@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SND48 - Admin Shop Management</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        .phone-frame { max-width: 430px; height: 880px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-pink-50 via-white to-purple-50 min-h-screen flex items-center justify-center p-0 sm:p-4">
+
+    <!-- Phone Container -->
+    <div class="phone-frame bg-gray-50 w-full h-screen sm:h-[850px] sm:rounded-[40px] flex flex-col justify-between relative overflow-hidden border border-purple-100 shadow-2xl">
+        
+        <!-- Header -->
+        <div class="bg-white px-6 py-4 flex items-center justify-between border-b border-gray-100 pt-8">
+            <div class="flex items-center space-x-3">
+                <a href="admin.html" class="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-purple-50 hover:text-purple-600 transition-all">
+                    <i class="fa-solid fa-arrow-left text-xs"></i>
+                </a>
+                <h1 class="text-xs font-bold text-gray-800">Admin: จัดการร้านค้า</h1>
+            </div>
+            <button onclick="openAddModal()" class="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-200">
+                <i class="fa-solid fa-plus text-xs"></i>
+            </button>
+        </div>
+
+        <!-- Content Area -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-3" id="admin-shop-list">
+            <div class="text-center text-gray-400 text-xs py-10">กำลังโหลดรายการสินค้า...</div>
+        </div>
+
+        <!-- Footer Bar -->
+        <div class="py-3 flex justify-center bg-white border-t border-gray-100">
+            <div class="w-32 h-1 bg-gray-300 rounded-full"></div>
+        </div>
+    </div>
+
+    <!-- Modal Form (Add Item) -->
+    <div id="shop-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-sm font-bold text-gray-800">เพิ่มสินค้าใหม่ลงร้านค้า</h2>
+                <button onclick="closeAddModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form id="shop-form" onsubmit="saveShopItem(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-gray-600 mb-1">รูปสินค้า</label>
+                    <input type="file" id="input-img" accept="image/*" required class="w-full p-2.5 rounded-xl border border-gray-200 outline-none bg-gray-50 text-[11px]">
+                </div>
+
+                <div>
+                    <label class="block text-gray-600 mb-1">ชื่อสินค้า</label>
+                    <input type="text" id="input-name" required placeholder="เช่น บัตรจับมือพิเศษ" class="w-full p-2.5 rounded-xl border border-gray-200 outline-none focus:border-purple-500 bg-gray-50">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-gray-600 mb-1">ราคา</label>
+                        <input type="number" id="input-price" required min="1" placeholder="เช่น 100" class="w-full p-2.5 rounded-xl border border-gray-200 outline-none focus:border-purple-500 bg-gray-50">
+                    </div>
+                    <div>
+                        <label class="block text-gray-600 mb-1">สกุลเงิน</label>
+                        <select id="input-currency" class="w-full p-2.5 rounded-xl border border-gray-200 outline-none focus:border-purple-500 bg-gray-50">
+                            <option value="coin">Coin (C)</option>
+                            <option value="point">Point (P)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-gray-600 mb-1">รายละเอียดสินค้า</label>
+                    <textarea id="input-desc" rows="2" placeholder="รายละเอียดเพิ่มเติม..." class="w-full p-2.5 rounded-xl border border-gray-200 outline-none focus:border-purple-500 bg-gray-50 resize-none"></textarea>
+                </div>
+
+                <button type="submit" id="save-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl transition-all shadow-md shadow-purple-200 mt-2">
+                    บันทึกสินค้า
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="supabase-config.js"></script>
+    <script>
+        const currentUser = requireAuth();
+        if (currentUser.role !== 'admin') {
+            alert('สำหรับผู้ดูแลระบบเท่านั้น');
+            window.location.href = 'home.html';
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadAdminShopItems();
+        });
+
+        async function loadAdminShopItems() {
+            try {
+                const { data, error } = await supabase.from('shop_items').select('*').order('created_at', { ascending: false });
+                if (error) throw error;
+
+                const container = document.getElementById('admin-shop-list');
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<div class="text-center text-gray-400 text-xs py-10">ยังไม่มีสินค้าในร้านค้า</div>';
+                    return;
+                }
+
+                container.innerHTML = data.map(item => `
+                    <div class="bg-white p-3 rounded-2xl flex items-center justify-between border border-gray-100 shadow-sm">
+                        <div class="flex items-center space-x-3">
+                            <img src="${item.image_url}" class="w-12 h-12 rounded-xl object-cover bg-gray-100">
+                            <div>
+                                <h4 class="font-bold text-gray-800 text-xs">${item.name}</h4>
+                                <p class="text-[10px] ${item.currency_type === 'coin' ? 'text-amber-500' : 'text-purple-600'} font-semibold mt-0.5">
+                                    ${item.price} ${item.currency_type === 'coin' ? 'Coin' : 'Point'}
+                                </p>
+                            </div>
+                        </div>
+                        <button onclick="deleteShopItem('${item.id}')" class="w-8 h-8 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-all">
+                            <i class="fa-solid fa-trash text-[10px]"></i>
+                        </button>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function openAddModal() {
+            document.getElementById('shop-form').reset();
+            document.getElementById('shop-modal').classList.remove('hidden');
+        }
+
+        function closeAddModal() {
+            document.getElementById('shop-modal').classList.add('hidden');
+        }
+
+        async function saveShopItem(e) {
+            e.preventDefault();
+            const btn = document.getElementById('save-btn');
+            btn.disabled = true;
+            btn.textContent = 'กำลังอัปโหลดและบันทึก...';
+
+            try {
+                const fileInput = document.getElementById('input-img');
+                const name = document.getElementById('input-name').value.trim();
+                const price = parseInt(document.getElementById('input-price').value);
+                const currency_type = document.getElementById('input-currency').value;
+                const description = document.getElementById('input-desc').value.trim();
+
+                if (fileInput.files.length === 0) {
+                    alert('กรุณาเลือกรูปสินค้า');
+                    btn.disabled = false;
+                    btn.textContent = 'บันทึกสินค้า';
+                    return;
+                }
+
+                // อัปโหลดรูปไปยัง Cloudinary
+                const file = fileInput.files[0];
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('upload_preset', 'SND48-PROJECT');
+
+                const cloudinaryRes = await fetch('https://api.cloudinary.com/v1_1/lz6pjz6r/image/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const cloudinaryData = await cloudinaryRes.json();
+                if (!cloudinaryData.secure_url) throw new Error('อัปโหลดรูปภาพไม่สำเร็จ');
+
+                const image_url = cloudinaryData.secure_url;
+
+                // บันทึกลง Supabase
+                const { error } = await supabase.from('shop_items').insert([{
+                    name, price, currency_type, description, image_url
+                }]);
+
+                if (error) throw error;
+
+                closeAddModal();
+                loadAdminShopItems();
+                alert('เพิ่มสินค้าสำเร็จ!');
+            } catch (err) {
+                console.error(err);
+                alert('เกิดข้อผิดพลาด: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'บันทึกสินค้า';
+            }
+        }
+
+        async function deleteShopItem(id) {
+            if (!confirm('คุณต้องการลบสินค้านี้ใช่หรือไม่?')) return;
+            try {
+                const { error } = await supabase.from('shop_items').delete().eq('id', id);
+                if (error) throw error;
+                loadAdminShopItems();
+            } catch (err) {
+                console.error(err);
+                alert('ไม่สามารถลบสินค้าได้');
+            }
+        }
+    </script>
+</body>
+</html>
