@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SND48 - Bank (ธนาคาร)</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { box-sizing: border-box; font-family: 'Prompt', sans-serif; }
+        body { 
+            background: #f4f6f9; /* สีขาวมุกพรีเมียม */
+            color: #0b2545; /* สีน้ำเงินเข้ม */
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            margin: 0; 
+        }
+        
+        .phone-frame { 
+            width: 380px; 
+            height: 750px; 
+            background: #ffffff; 
+            border-radius: 40px; 
+            border: 8px solid #0b2545; 
+            box-shadow: 0 20px 40px rgba(11, 37, 69, 0.15); 
+            display: flex; 
+            flex-direction: column; 
+            padding: 20px; 
+            position: relative; 
+            overflow-y: auto; 
+        }
+
+        /* ส่วนหัวและปุ่มย้อนกลับ */
+        .header { display: flex; align-items: center; margin-bottom: 20px; }
+        .back-btn { background: #f0f4f8; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-size: 1rem; color: #0b2545; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .back-btn:hover { background: #e2e8f0; }
+        .header h2 { font-size: 1.2rem; margin: 0 auto; color: #0b2545; }
+
+        /* การ์ดแสดงยอดเงิน (Balance Card) */
+        .balance-card { 
+            background: linear-gradient(135deg, #0b2545, #133863); 
+            color: #ffffff; 
+            padding: 20px; 
+            border-radius: 20px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 10px 20px rgba(11, 37, 69, 0.2); 
+        }
+        .account-num { font-size: 0.8rem; color: #93c5fd; margin-bottom: 10px; letter-spacing: 1px; }
+        .balances { display: flex; justify-content: space-between; margin-top: 15px; }
+        .balance-item p { margin: 0; font-size: 0.75rem; color: #cbd5e1; }
+        .balance-item h3 { margin: 5px 0 0 0; font-size: 1.3rem; font-weight: 600; color: #64ffda; }
+
+        /* แท็บเมนูในธนาคาร */
+        .bank-tabs { display: flex; gap: 8px; margin-bottom: 15px; background: #f0f4f8; padding: 4px; border-radius: 12px; }
+        .bank-tab { flex: 1; padding: 8px; border: none; background: transparent; font-size: 0.8rem; font-weight: 600; color: #6b7c93; cursor: pointer; border-radius: 8px; transition: 0.2s; }
+        .bank-tab.active { background: #0b2545; color: #ffffff; }
+
+        .section-box { display: none; }
+        .section-box.active { display: block; }
+
+        /* ฟอร์มและปุ่ม */
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 0.8rem; font-weight: 600; color: #0b2545; margin-bottom: 4px; }
+        .form-group input, .form-group select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 0.9rem; outline: none; background: #fafbfc; }
+        .form-group input:focus { border-color: #0b2545; background: #fff; }
+
+        .action-btn { width: 100%; padding: 10px; border-radius: 10px; border: none; background: #0b2545; color: white; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: 0.2s; margin-top: 5px; }
+        .action-btn:hover { background: #133863; }
+
+        /* รายชื่อสมุดบัญชีผู้รับ */
+        .beneficiary-list { max-height: 250px; overflow-y: auto; margin-top: 10px; }
+        .beneficiary-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .beneficiary-info p { margin: 0; font-size: 0.85rem; font-weight: 600; color: #0b2545; }
+        .beneficiary-info span { font-size: 0.7rem; color: #6b7c93; }
+        .use-btn { background: #e0f2fe; color: #0284c7; border: none; padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
+        .use-btn:hover { background: #bae6fd; }
+
+        .msg { font-size: 0.75rem; text-align: center; margin-top: 8px; min-height: 15px; }
+    </style>
+</head>
+<body>
+
+    <div class="phone-frame">
+        <!-- ส่วนหัว -->
+        <div class="header">
+            <button class="back-btn" onclick="location.href='home.html'">❮</button>
+            <h2>SND48 Bank</h2>
+            <div style="width: 35px;"></div>
+        </div>
+
+        <!-- การ์ดแสดงยอดเงินปัจจุบัน -->
+        <div class="balance-card">
+            <div class="account-num">เลขบัญชี: <span id="display-acc">----------</span></div>
+            <p style="margin: 0; font-size: 0.75rem; color: #cbd5e1;">ยอดเงินคงเหลือรวม</p>
+            <div class="balances">
+                <div class="balance-item">
+                    <p>Coin (C)</p>
+                    <h3><span id="display-coin">0</span> C</h3>
+                </div>
+                <div class="balance-item">
+                    <p>Point</p>
+                    <h3><span id="display-point">0</span> P</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- แท็บสลับฟังก์ชันธนาคาร -->
+        <div class="bank-tabs">
+            <button class="bank-tab active" onclick="switchBankTab('transfer')">โอนเงิน / พ้อยต์</button>
+            <button class="bank-tab" onclick="switchBankTab('beneficiaries')">สมุดบัญชีผู้รับ</button>
+        </div>
+
+        <!-- ฟังก์ชันที่ 1: โอนเงิน / พ้อยต์ -->
+        <div id="transfer-section" class="section-box active">
+            <div class="form-group">
+                <label>ประเภทที่ต้องการโอน</label>
+                <select id="transfer-type">
+                    <option value="coin">Coin (C)</option>
+                    <option value="point">Point (P)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>เลขบัญชีผู้รับ (10 หลัก)</label>
+                <input type="text" id="target-acc" maxlength="10" placeholder="ระบุเลขบัญชี 10 หลัก">
+            </div>
+            <div class="form-group">
+                <label>จำนวนเงินที่ต้องการโอน</label>
+                <input type="number" id="transfer-amount" min="1" placeholder="ระบุจำนวน">
+            </div>
+            <button class="action-btn" onclick="handleTransfer()">ยืนยันการโอน</button>
+            <div id="transfer-msg" class="msg" style="color: #e53e3e;"></div>
+        </div>
+
+        <!-- ฟังก์ชันที่ 2: สมุดบัญชีรายชื่อผู้รับ (Saved Beneficiaries) -->
+        <div id="beneficiaries-section" class="section-box">
+            <div class="form-group">
+                <label>ชื่อผู้รับ (บันทึกช่วยจำ)</label>
+                <input type="text" id="bene-name" placeholder="เช่น เพื่อนซี้, เมมเบอร์โอชิ">
+            </div>
+            <div class="form-group">
+                <label>เลขบัญชี (10 หลัก)</label>
+                <input type="text" id="bene-acc" maxlength="10" placeholder="ระบุเลขบัญชี">
+            </div>
+            <button class="action-btn" onclick="saveBeneficiary()">บันทึกรายชื่อผู้รับ</button>
+            
+            <p style="font-size: 0.8rem; font-weight: 600; margin: 15px 0 5px 0; color: #0b2545;">รายชื่อที่บันทึกไว้</p>
+            <div id="beneficiary-list" class="beneficiary-list">
+                <!-- รายชื่อจะแสดงตรงนี้ -->
+            </div>
+        </div>
+    </div>
+
+    <!-- โหลดไฟล์ตั้งค่ากลาง -->
+    <script src="supabase-config.js"></script>
+    <script>
+        // เช็คสิทธิ์การเข้าสู่ระบบ
+        let currentUser = requireAuth();
+
+        // โหลดข้อมูลล่าสุดจากฐานข้อมูลทันทีเมื่อเปิดหน้า
+        async function loadUserData() {
+            if (currentUser.role === 'admin') {
+                // แอดมินจำลอง
+                document.getElementById('display-acc').innerText = currentUser.account_number;
+                document.getElementById('display-coin').innerText = currentUser.coin.toLocaleString();
+                document.getElementById('display-point').innerText = currentUser.point.toLocaleString();
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from('users')
+                .select('*')
+                .eq('email', currentUser.email)
+                .single();
+
+            if (data) {
+                currentUser = data;
+                localStorage.setItem('snd48_user', JSON.stringify(data));
+                document.getElementById('display-acc').innerText = data.account_number;
+                document.getElementById('display-coin').innerText = data.coin.toLocaleString();
+                document.getElementById('display-point').innerText = data.point.toLocaleString();
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadUserData();
+            renderBeneficiaries();
+        });
+
+        // สลับแท็บในหน้าธนาคาร
+        function switchBankTab(tab) {
+            document.querySelectorAll('.bank-tab').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.section-box').forEach(s => s.classList.remove('active'));
+
+            if (tab === 'transfer') {
+                document.querySelectorAll('.bank-tab')[0].classList.add('active');
+                document.getElementById('transfer-section').classList.add('active');
+            } else {
+                document.querySelectorAll('.bank-tab')[1].classList.add('active');
+                document.getElementById('beneficiaries-section').classList.add('active');
+            }
+        }
+
+        // ระบบโอนเงิน / พ้อยต์
+        async function handleTransfer() {
+            const type = document.getElementById('transfer-type').value;
+            const targetAcc = document.getElementById('target-acc').value.trim();
+            const amount = parseInt(document.getElementById('transfer-amount').value);
+            const msg = document.getElementById('transfer-msg');
+            msg.innerText = '';
+
+            if (!targetAcc || !amount || amount <= 0) {
+                msg.style.color = '#e53e3e';
+                msg.innerText = 'กรุณากรอกข้อมูลให้ถูกต้อง';
+                return;
+            }
+
+            if (targetAcc === currentUser.account_number) {
+                msg.style.color = '#e53e3e';
+                msg.innerText = 'ไม่สามารถโอนให้บัญชีตัวเองได้';
+                return;
+            }
+
+            // เช็คยอดเงินของผู้โอน
+            if (type === 'coin' && currentUser.coin < amount) {
+                msg.style.color = '#e53e3e';
+                msg.innerText = 'Coin (C) ของคุณไม่เพียงพอ';
+                return;
+            }
+            if (type === 'point' && currentUser.point < amount) {
+                msg.style.color = '#e53e3e';
+                msg.innerText = 'Point ของคุณไม่เพียงพอ';
+                return;
+            }
+
+            // ค้นหาบัญชีผู้รับใน Supabase
+            const { data: recipient, error: findError } = await supabase
+                .from('users')
+                .select('*')
+                .eq('account_number', targetAcc)
+                .single();
+
+            if (findError || !recipient) {
+                msg.style.color = '#e53e3e';
+                msg.innerText = 'ไม่พบเลขบัญชีผู้รับนี้ในระบบ';
+                return;
+            }
+
+            // คำนวณยอดใหม่ของผู้โอนและผู้รับ
+            const newSenderBalance = currentUser[type] - amount;
+            const newRecipientBalance = recipient[type] + amount;
+
+            // อัปเดตยอดผู้โอน
+            const { error: updateSenderError } = await supabase
+                .from('users')
+                .update({ [type]: newSenderBalance })
+                .eq('email', currentUser.email);
+
+            if (updateSenderError) {
+                msg.style.color = '#e53e3e';
+                msg.innerText = 'เกิดข้อผิดพลาดในการโอน';
+                return;
+            }
+
+            // อัปเดตยอดผู้รับ
+            await supabase
+                .from('users')
+                .update({ [type]: newRecipientBalance })
+                .eq('account_number', targetAcc);
+
+            msg.style.color = '#38a169';
+            msg.innerText = 'โอนสำเร็จเรียบร้อยแล้ว!';
+            document.getElementById('target-acc').value = '';
+            document.getElementById('transfer-amount').value = '';
+
+            // รีโหลดข้อมูลหน้าจอ
+            loadUserData();
+        }
+
+        // ระบบสมุดบัญชีรายชื่อผู้รับ (บันทึกใน localStorage)
+        function getBeneficiaries() {
+            return JSON.parse(localStorage.getItem(`beneficiaries_${currentUser.email}`)) || [];
+        }
+
+        function saveBeneficiary() {
+            const name = document.getElementById('bene-name').value.trim();
+            const acc = document.getElementById('bene-acc').value.trim();
+
+            if (!name || !acc || acc.length !== 10) {
+                alert('กรุณากรอกชื่อและเลขบัญชี 10 หลักให้ถูกต้อง');
+                return;
+            }
+
+            const list = getBeneficiaries();
+            list.push({ name, acc });
+            localStorage.setItem(`beneficiaries_${currentUser.email}`, JSON.stringify(list));
+
+            document.getElementById('bene-name').value = '';
+            document.getElementById('bene-acc').value = '';
+            renderBeneficiaries();
+        }
+
+        function renderBeneficiaries() {
+            const list = getBeneficiaries();
+            const container = document.getElementById('beneficiary-list');
+            container.innerHTML = '';
+
+            if (list.length === 0) {
+                container.innerHTML = '<p style="font-size: 0.75rem; color: #a0aec0; text-align: center; margin-top: 10px;">ยังไม่มีรายชื่อที่บันทึกไว้</p>';
+                return;
+            }
+
+            list.forEach((item, index) => {
+                container.innerHTML += `
+                    <div class="beneficiary-card">
+                        <div class="beneficiary-info">
+                            <p>${item.name}</p>
+                            <span>เลขบัญชี: ${item.acc}</span>
+                        </div>
+                        <button class="use-btn" onclick="selectBeneficiary('${item.acc}')">เลือกโอน</button>
+                    </div>
+                `;
+            });
+        }
+
+        // กดเลือกรายชื่อเพื่อไปหน้าโอนเงินอัตโนมัติ
+        function selectBeneficiary(acc) {
+            document.getElementById('target-acc').value = acc;
+            switchBankTab('transfer');
+        }
+    </script>
+</body>
+</html>
