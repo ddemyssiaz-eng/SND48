@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SND48 - Admin Members Management</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        .phone-frame { max-width: 430px; height: 880px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-pink-50 via-white to-purple-50 min-h-screen flex items-center justify-center p-0 sm:p-4">
+
+    <!-- Phone Container -->
+    <div class="phone-frame bg-gray-50 w-full h-screen sm:h-[850px] sm:rounded-[40px] flex flex-col justify-between relative overflow-hidden border border-purple-100 shadow-2xl">
+        
+        <!-- Header -->
+        <div class="bg-white px-6 py-4 flex items-center justify-between border-b border-gray-100 pt-8">
+            <div class="flex items-center space-x-3">
+                <a href="home.html" class="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-purple-50 hover:text-purple-600 transition-all">
+                    <i class="fa-solid fa-arrow-left text-xs"></i>
+                </a>
+                <h1 class="text-sm font-bold text-gray-800">Admin: จัดการสมาชิกวง</h1>
+            </div>
+            <button onclick="openAddModal()" class="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-200">
+                <i class="fa-solid fa-plus text-xs"></i>
+            </button>
+        </div>
+
+        <!-- Content Area -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-3" id="admin-members-list">
+            <div class="text-center py-10 text-gray-400 text-xs">กำลังโหลดข้อมูล...</div>
+        </div>
+
+        <!-- Footer Bar -->
+        <div class="py-3 flex justify-center bg-white border-t border-gray-100">
+            <div class="w-32 h-1 bg-gray-300 rounded-full"></div>
+        </div>
+    </div>
+
+    <!-- Modal Form (Add / Edit) -->
+    <div id="member-form-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="modal-title" class="text-sm font-bold text-gray-800">เพิ่มสมาชิกใหม่</h2>
+                <button onclick="closeFormModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form id="member-form" onsubmit="saveMember(event)" class="space-y-3 text-xs">
+                <input type="hidden" id="member-id">
+                
+                <div>
+                    <label class="block text-gray-600 mb-1">รูปภาพศิลปิน (อัปโหลดผ่าน Cloudinary)</label>
+                    <input type="file" id="member-image-file" accept="image/*" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-600 hover:file:bg-purple-100">
+                    <input type="hidden" id="member-image-url">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-gray-600 mb-1">ชื่อเล่น</label>
+                        <input type="text" id="member-nickname" required class="w-full p-2.5 rounded-xl border border-gray-200 outline-none focus:border-purple-500 bg-gray-50">
+                    </div>
+                    <div>
+                        <label class="block text-gray-600 mb-1">รุ่น / Gen</label>
+                        <input type="text" id="member-gen" required placeholder="เช่น Gen 1" class="w-full p-2.5 rounded-xl border border-gray-200 outline-none focus:border-purple-500 bg-gray-50">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-gray-600 mb-1">ชื่อจริง - นามสกุล</label>
+                    <input type="text" id="member-fullname" required class="w-full p-2.5 rounded-xl border border-gray-200 outline-none focus:border-purple-500 bg-gray-50">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-gray-600 mb-1">วัน/เดือน/ปี เกิด</label>
+                        <input type="text" id="member-birthdate" required placeholder="เช่น 1 มกราคม 2548" class="w-full p-2.5 rounded-xl border border-gray-200 outline-none focus:border-purple-500 bg-gray-50">
+                    </div>
+                    <div>
+                        <label class="block text-gray-600 mb-1">สถานะ</label>
+                        <input type="text" id="member-status" required placeholder="เช่น สมาชิกวง / จบการศึกษาแล้ว" class="w-full p-2.5 rounded-xl border border-gray-200 outline-none focus:border-purple-500 bg-gray-50">
+                    </div>
+                </div>
+
+                <button type="submit" id="save-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl transition-all shadow-md shadow-purple-200 mt-2">
+                    บันทึกข้อมูล
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="supabase-config.js"></script>
+    <script>
+        const user = requireAuth();
+        // ตรวจสอบสิทธิ์ Admin ตามเงื่อนไขระบบ
+        if (user.role !== 'admin') {
+            alert('สำหรับผู้ดูแลระบบเท่านั้น');
+            window.location.href = 'home.html';
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadAdminMembers();
+        });
+
+        async function loadAdminMembers() {
+            try {
+                const { data, error } = await supabase.from('members').select('*').order('created_at', { ascending: false });
+                if (error) throw error;
+
+                const container = document.getElementById('admin-members-list');
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<div class="text-center text-gray-400 text-xs py-10">ยังไม่มีข้อมูลสมาชิก</div>';
+                    return;
+                }
+
+                container.innerHTML = data.map(m => `
+                    <div class="bg-white p-3 rounded-2xl flex items-center justify-between border border-gray-100 shadow-sm">
+                        <div class="flex items-center space-x-3">
+                            <img src="${m.image_url}" class="w-12 h-12 rounded-xl object-cover" alt="">
+                            <div>
+                                <h4 class="font-bold text-gray-800 text-xs">${m.nickname} <span class="text-[10px] text-purple-600 font-normal">(${m.generation})</span></h4>
+                                <p class="text-[10px] text-gray-400">${m.status}</p>
+                            </div>
+                        </div>
+                        <div class="flex space-x-1">
+                            <button onclick='openEditModal(${JSON.stringify(m)})' class="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 hover:bg-purple-50 hover:text-purple-600 flex items-center justify-center transition-all">
+                                <i class="fa-solid fa-pen text-[10px]"></i>
+                            </button>
+                            <button onclick="deleteMember('${m.id}')" class="w-8 h-8 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-all">
+                                <i class="fa-solid fa-trash text-[10px]"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function openAddModal() {
+            document.getElementById('modal-title').textContent = 'เพิ่มสมาชิกใหม่';
+            document.getElementById('member-form').reset();
+            document.getElementById('member-id').value = '';
+            document.getElementById('member-image-url').value = '';
+            document.getElementById('member-form-modal').classList.remove('hidden');
+        }
+
+        function openEditModal(m) {
+            document.getElementById('modal-title').textContent = 'แก้ไขข้อมูลสมาชิก';
+            document.getElementById('member-id').value = m.id;
+            document.getElementById('member-nickname').value = m.nickname;
+            document.getElementById('member-fullname').value = m.fullname;
+            document.getElementById('member-birthdate').value = m.birthdate;
+            document.getElementById('member-gen').value = m.generation;
+            document.getElementById('member-status').value = m.status;
+            document.getElementById('member-image-url').value = m.image_url;
+            document.getElementById('member-form-modal').classList.remove('hidden');
+        }
+
+        function closeFormModal() {
+            document.getElementById('member-form-modal').classList.add('hidden');
+        }
+
+        // ฟังก์ชันอัปโหลดรูปภาพผ่าน Cloudinary (Cloud Name: lz6pjz6r, Preset: SND48-PROJECT)
+        async function uploadImageToCloudinary(fileInput) {
+            const file = fileInput.files[0];
+            if (!file) return null;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', 'SND48-PROJECT');
+
+            try {
+                const res = await fetch('https://api.cloudinary.com/v1_1/lz6pjz6r/image/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                return data.secure_url || null;
+            } catch (err) {
+                console.error('Cloudinary Error:', err);
+                return null;
+            }
+        }
+
+        async function saveMember(e) {
+            e.preventDefault();
+            const btn = document.getElementById('save-btn');
+            btn.disabled = true;
+            btn.textContent = 'กำลังบันทึก...';
+
+            try {
+                const id = document.getElementById('member-id').value;
+                const fileInput = document.getElementById('member-image-file');
+                let imageUrl = document.getElementById('member-image-url').value;
+
+                // ถ้ามีการเลือกไฟล์ใหม่ให้อัปโหลดไป Cloudinary
+                if (fileInput.files.length > 0) {
+                    const uploadedUrl = await uploadImageToCloudinary(fileInput);
+                    if (uploadedUrl) imageUrl = uploadedUrl;
+                }
+
+                if (!imageUrl) {
+                    alert('กรุณาอัปโหลดรูปภาพศิลปิน');
+                    btn.disabled = false;
+                    btn.textContent = 'บันทึกข้อมูล';
+                    return;
+                }
+
+                const memberData = {
+                    nickname: document.getElementById('member-nickname').value.trim(),
+                    fullname: document.getElementById('member-fullname').value.trim(),
+                    birthdate: document.getElementById('member-birthdate').value.trim(),
+                    generation: document.getElementById('member-gen').value.trim(),
+                    status: document.getElementById('member-status').value.trim(),
+                    image_url: imageUrl
+                };
+
+                if (id) {
+                    // อัปเดตข้อมูลเดิมใน Supabase
+                    const { error } = await supabase.from('members').update(memberData).eq('id', id);
+                    if (error) throw error;
+                } else {
+                    // เพิ่มข้อมูลใหม่ลง Supabase
+                    const { error } = await supabase.from('members').insert([memberData]);
+                    if (error) throw error;
+                }
+
+                closeFormModal();
+                loadAdminMembers();
+                alert('บันทึกข้อมูลสำเร็จ!');
+            } catch (err) {
+                console.error(err);
+                alert('เกิดข้อผิดพลาด: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'บันทึกข้อมูล';
+            }
+        }
+
+        async function deleteMember(id) {
+            if (!confirm('คุณต้องการลบสมาชิกคนนี้ใช่หรือไม่?')) return;
+            try {
+                const { error } = await supabase.from('members').delete().eq('id', id);
+                if (error) throw error;
+                loadAdminMembers();
+            } catch (err) {
+                console.error(err);
+                alert('ไม่สามารถลบข้อมูลได้');
+            }
+        }
+    </script>
+</body>
+</html>
